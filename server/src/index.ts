@@ -8,6 +8,7 @@
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
  *   POST /api/report-error  - optional automatic kill switch via flag trigger
  *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
+ *   POST /api/landing/evaluate - Part 2: evaluate landing-hero-v-2 for a visitor context
  */
 import 'dotenv/config';
 import cors from 'cors';
@@ -15,6 +16,7 @@ import express from 'express';
 import { ldClient, waitForLaunchDarkly } from './ld.js';
 import { demoRouter } from './routes/demo.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
+import { landingRouter } from './routes/landing.js';
 import { reportsRouter } from './routes/reports.js';
 import { remediateRouter } from './routes/remediate.js';
 
@@ -32,6 +34,7 @@ app.use('/api', reportsRouter);
 app.use('/api', flagEventsRouter);
 app.use('/api', remediateRouter);
 app.use('/api', demoRouter);
+app.use('/api', landingRouter);
 
 async function main(): Promise<void> {
   await waitForLaunchDarkly();

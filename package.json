@@ -15,7 +15,8 @@
     "build": "npm run build -w server && npm run build -w client",
     "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
     "remediate": "bash scripts/remediate.sh",
-    "remediate:api": "bash scripts/remediate-api.sh"
+    "remediate:api": "bash scripts/remediate-api.sh",
+    "setup:part2": "bash scripts/setup-part2-targeting.sh"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

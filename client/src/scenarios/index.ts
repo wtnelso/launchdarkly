@@ -1,6 +1,8 @@
 import { useEffect, useState, type ComponentType } from 'react';
 import { Part1Admin } from './part1/Part1Admin';
 import { Part1View } from './part1/Part1View';
+import { Part2Admin } from './part2/Part2Admin';
+import { Part2View } from './part2/Part2View';
 
 /**
  * Each part of the exercise is a "scenario": an end-user view (what ABC
@@ -19,6 +21,7 @@ export interface Scenario {
 
 export const SCENARIOS: Scenario[] = [
   { id: 'part-1', label: 'Part 1 · Release & Remediate', View: Part1View, Admin: Part1Admin },
+  { id: 'part-2', label: 'Part 2 · Target', View: Part2View, Admin: Part2Admin },
 ];
 
 function fromHash(): Scenario {

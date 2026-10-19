@@ -1,5 +1,5 @@
 import { LDObserve } from '@launchdarkly/observability';
-import { FLAG_KEYS } from './flags';
+import { FLAG_KEYS, type FlagKey } from './flags';
 import { clientSideId, DEMO_CONTEXT_KEY, getLDClient } from './provider';
 
 type Level = 'debug' | 'info' | 'warn' | 'error';
@@ -9,7 +9,9 @@ interface FlagEventAttrs {
   value: boolean;
   /** Short machine-readable name: flag_change, chaos_on, crash, kill_switch... */
   event: string;
-  [extra: string]: string | number | boolean;
+  /** Which flag this is about (default: the Part 1 flag). */
+  flag?: FlagKey;
+  [extra: string]: string | number | boolean | undefined;
 }
 
 /**
@@ -22,9 +24,11 @@ interface FlagEventAttrs {
  * show up under the flag's Monitoring > Logs view rather than only on the
  * account-wide Logs page.
  */
-function flagAttributes({ value, event, ...extra }: FlagEventAttrs): Record<string, string | number | boolean> {
+function flagAttributes({ value, event, flag = FLAG_KEYS.INSIGHTS_DASHBOARD, ...rest }: FlagEventAttrs): Record<string, string | number | boolean> {
+  const extra: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(rest)) if (v !== undefined) extra[k] = v;
   return {
-    'feature_flag.key': FLAG_KEYS.INSIGHTS_DASHBOARD,
+    'feature_flag.key': flag,
     'feature_flag.set.id': clientSideId,
     'feature_flag.result.value': String(value),
     'feature_flag.provider.name': 'LaunchDarkly',
@@ -41,7 +45,7 @@ function withFlagSpan(name: string, attributes: Record<string, string | number |
     LDObserve.startSpan(name, (span) => {
       span?.setAttributes(attributes);
       // Evaluate inside the span so the plugin's evaluation event lands in this trace.
-      getLDClient().boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+      getLDClient().boolVariation(String(attributes['feature_flag.key']), false);
       fn();
     });
   } catch (err) {

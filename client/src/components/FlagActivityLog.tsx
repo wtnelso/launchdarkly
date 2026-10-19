@@ -1,10 +1,10 @@
 import { useBoolVariation, useLDClient } from '@launchdarkly/react-sdk';
 import { useEffect, useState } from 'react';
-import { FLAG_KEYS } from '../ld/flags';
+import { FLAG_KEYS, type FlagKey } from '../ld/flags';
 import { logFlagEvent } from '../ld/telemetry';
 
-/** React's development double-mount would log the page-load evaluation twice; only log it once. */
-let pageLoadLogged = false;
+/** React's development double-mount would log the page-load evaluation twice; only log it once per flag. */
+const pageLoadLogged = new Set<string>();
 
 interface Entry {
   at: string;
@@ -21,45 +21,47 @@ interface Entry {
  * the hooks use under the hood - and writes a timestamped audit line each
  * time LaunchDarkly pushes a new value over the stream.
  */
-export function FlagActivityLog() {
+export function FlagActivityLog({ flagKey = FLAG_KEYS.INSIGHTS_DASHBOARD }: { flagKey?: FlagKey }) {
   const client = useLDClient();
-  const current = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+  const current = useBoolVariation(flagKey, false);
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
-    const eventName = `change:${FLAG_KEYS.INSIGHTS_DASHBOARD}`;
+    const eventName = `change:${flagKey}`;
 
-    let lastValue = client.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+    let lastValue = client.boolVariation(flagKey, false);
 
     // The change event doesn't carry the value, so read it inside the handler.
     // The SDK also emits the event while it finishes loading flags, so only log
     // when the value actually differs from what we last saw.
     const onChange = () => {
-      const value = client.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+      const value = client.boolVariation(flagKey, false);
       if (value === lastValue) return;
       lastValue = value;
       const entry: Entry = { at: new Date().toISOString(), value, source: 'stream' };
       setEntries((prev) => [entry, ...prev].slice(0, 20));
       // Also tell LaunchDarkly Observability (shows under the flag's Monitoring > Logs).
-      logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} changed to ${value} in the browser`, 'info', {
+      logFlagEvent(`${flagKey} changed to ${value} in the browser`, 'info', {
         event: 'flag_change',
         value,
+        flag: flagKey,
       });
     };
 
     client.on(eventName, onChange);
     setEntries([{ at: new Date().toISOString(), value: lastValue, source: 'initial' }]);
-    if (!pageLoadLogged) {
-      pageLoadLogged = true;
-      logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} evaluated as ${lastValue} on page load`, 'info', {
+    if (!pageLoadLogged.has(flagKey)) {
+      pageLoadLogged.add(flagKey);
+      logFlagEvent(`${flagKey} evaluated as ${lastValue} on page load`, 'info', {
         event: 'flag_initial',
         value: lastValue,
+        flag: flagKey,
       });
     }
 
     // Always unsubscribe on unmount to avoid leaks.
     return () => client.off(eventName, onChange);
-  }, [client]);
+  }, [client, flagKey]);
 
   return (
     <div className="card">
@@ -68,7 +70,7 @@ export function FlagActivityLog() {
         <span className={`pill ${current ? 'on' : 'off'}`}>{current ? 'Released' : 'Rolled back'}</span>
       </div>
       <p className="muted small">
-        <code>client.on('change:{FLAG_KEYS.INSIGHTS_DASHBOARD}')</code> in this browser
+        <code>client.on('change:{flagKey}')</code> in this browser
       </p>
       <ul className="log">
         {entries.map((e) => (

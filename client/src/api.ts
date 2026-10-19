@@ -83,3 +83,29 @@ export async function setChaos(enabled: boolean): Promise<boolean> {
   });
   return ((await res.json()) as { enabled: boolean }).enabled;
 }
+
+/** Part 2: LaunchDarkly's evaluation detail for landing-hero-v-2, computed server-side. */
+export interface EvaluationReason {
+  kind: string;
+  ruleIndex?: number;
+  ruleId?: string;
+  errorKind?: string;
+}
+
+export interface LandingEvaluation {
+  flag: string;
+  value: boolean;
+  variationIndex?: number | null;
+  reason: EvaluationReason;
+  evaluatedAt: string;
+}
+
+export async function evaluateLanding(context: unknown): Promise<LandingEvaluation> {
+  const res = await fetch('/api/landing/evaluate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ context }),
+  });
+  if (!res.ok) throw new Error(`POST /api/landing/evaluate failed: ${res.status}`);
+  return (await res.json()) as LandingEvaluation;
+}

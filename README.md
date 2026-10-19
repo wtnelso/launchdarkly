@@ -21,9 +21,10 @@ that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments
 3. [LaunchDarkly setup (one time)](#launchdarkly-setup-one-time)
 4. [Run the app](#run-the-app)
 5. [Demo script: release → rollback → remediate](#demo-script-release--rollback--remediate)
-6. [How it works](#how-it-works)
-7. [Project layout](#project-layout)
-8. [Troubleshooting](#troubleshooting)
+6. [Part 2: Target](#part-2-target)
+7. [How it works](#how-it-works)
+8. [Project layout](#project-layout)
+9. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -162,6 +163,7 @@ Other commands:
 | `npm run typecheck` | Type-checks both workspaces |
 | `npm run remediate` | Fires the flag trigger (turns the flag off) |
 | `npm run remediate:api` | Same, via the REST API (fallback) |
+| `npm run setup:part2` | Configures Part 2 targeting on `landing-hero-v-2` via the REST API |
 
 ## Demo script: release → rollback → remediate
 
@@ -204,6 +206,64 @@ the logs are visible. **Never reload the browser** during the demo — that is t
 5. **Audit.** Open the flag's **History** tab in LaunchDarkly: every change is attributed — your
    user for the manual toggles, and the trigger (with the `eventName` you sent) for the
    remediations.
+
+## Part 2: Target
+
+Select **Part 2 · Target** in the top-right picker. The end-user view becomes ABC Company's
+marketing landing page; the **hero** is behind the flag **`landing-hero-v-2`**. Instead of a plain
+on/off switch, LaunchDarkly evaluates the flag per visitor using **context attributes**, so you can
+release the new hero to one named person, then to whole segments, while 40,000 daily visitors keep
+seeing the classic version.
+
+### The visitors (contexts)
+
+Each persona in the Admin drawer is a LaunchDarkly **multi-context**: a `user` plus the
+`organization` they belong to (`client/src/scenarios/part2/personas.ts`). Picking one calls
+`identify()`, the SDK fetches that visitor's flag values, and the hero re-renders with no reload.
+
+| Persona | `user` | `organization` | Should see | Served by |
+| --- | --- | --- | --- | --- |
+| Alice Chen | key `alice-chen`, country US, role admin, betaTester false | Northwind Robotics, plan **pro**, 2,400 people | Hero v2 | **Individual target** |
+| Carla Ruiz | key `carla-ruiz`, country CA, role manager | Maple Health, plan **enterprise**, 180 people | Hero v2 | **Rule 2** (organization.plan) |
+| Bruno Keller | key `bruno-keller`, country DE, role analyst, **betaTester true** | Keller GmbH, plan free, 12 people | Hero v2 | **Rule 1** (user.betaTester) |
+| Anonymous visitor | anonymous, country US | — | Classic hero | **Default rule** |
+
+### LaunchDarkly setup (one time)
+
+1. **Flags → Create flag.** Name `Landing hero v2`, key **`landing-hero-v-2`**, Boolean. Enable
+   **Available on client-side SDKs**. Leave targeting Off for now.
+2. Open the app, pick **Part 2 · Target**, open the Admin drawer and **click through all four
+   personas once**. LaunchDarkly learns context attributes from the SDK, so this makes `plan`,
+   `country`, `betaTester`, … available in the rule builder.
+3. On the flag's **Targeting** tab (environment `Test`):
+   - **Individual targets** → *Add* → context kind **user** → `alice-chen` → variation **true**.
+   - **+ Add rule** → name *Beta testers* → context kind **user**, attribute **betaTester**,
+     operator *is one of*, value `true` → serve **true**.
+   - **+ Add rule** → name *Enterprise organizations* → context kind **organization**, attribute
+     **plan**, operator *is one of*, value `enterprise` → serve **true**.
+   - **Default rule** → serve **false**.
+   - Toggle the flag **On** → **Review and save**.
+
+**Prefer a script?** The same targeting can be applied through the REST API with
+`npm run setup:part2` (`scripts/setup-part2-targeting.sh`). It needs an API access token in
+`server/.env` as `LD_API_TOKEN` (Organization settings → Authorization → Create token, Writer role);
+`LD_PROJECT_KEY` is auto-detected when the token sees one project and `LD_ENV_KEY` defaults to
+`test`. The script looks up the flag's variation IDs, then sends one semantic patch with
+`addTargets`, two `addRule`s, `updateFallthroughVariationOrRollout` and `turnFlagOn`.
+
+Rule order matters: LaunchDarkly checks individual targets first, then rules top to bottom, then
+the default rule. The Evaluation card in the drawer reports which one matched (`TARGET_MATCH`,
+`RULE_MATCH` + rule number, or `FALLTHROUGH`) from both the browser SDK and the Node SDK, which
+evaluates the identical context via `POST /api/landing/evaluate`.
+
+### Demo script
+
+1. **Anonymous visitor** → classic hero; Evaluation: *Default rule* on both tiers.
+2. **Alice** → v2 hero; *Individual target*. "She's on our team; she sees it before anyone."
+3. **Bruno** → v2 hero with the Beta badge and EU data-residency line; *Rule 1* (a user attribute).
+4. **Carla** → v2 hero with the Enterprise copy; *Rule 2*. "Targeted by her company's plan, not by her."
+5. Edit a rule in LaunchDarkly (e.g. switch Rule 1 to serve false) and save: Bruno flips back to the
+   classic hero instantly; Alice and Carla are untouched.
 
 ## How it works
 
@@ -266,7 +326,8 @@ context with attributes.
 │   └── src/
 │       ├── App.tsx           top bar (part picker + Admin toggle), end-user view, admin drawer
 │       ├── scenarios/        one entry per exercise part: { View, Admin }
-│       │   └── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
+│       │   ├── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
+│       │   └── part2/        Part2View (landing page, HeroGate), Part2Admin (personas, evaluation), personas.ts, personaStore.ts
 │       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming, observability plugins)
 │       ├── ld/telemetry.ts   logFlagEvent(): flag-tagged logs for Monitoring > Logs
 │       ├── ld/flags.ts       flag keys
@@ -285,11 +346,12 @@ context with attributes.
 │       ├── ld.ts             Node SDK singleton + observability plugin, logFlagEvent()
 │       ├── demo.ts           demo-only chaos state (malformed Insights payload)
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
-│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts
+│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts, landing.ts (Part 2 evaluate)
 ├── scripts/
 │   ├── remediate.sh          curl → flag trigger
-│   └── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)
-└── docs/part1-release-and-remediate.md   reviewer walkthrough
+│   ├── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)
+│   └── setup-part2-targeting.sh   REST API semantic patch: targets + rules for Part 2
+└── docs/                     part1-release-and-remediate.md, part2-targeting.md (reviewer walkthroughs)
 ```
 
 ## Troubleshooting
@@ -306,4 +368,7 @@ context with attributes.
 | Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
 | Nothing under Observability → Errors in LaunchDarkly | Events batch and can take a minute to appear. Reload the page once after setting the client-side ID; check the browser console for plugin errors. |
 | Flag → Monitoring → Logs/Errors is empty but the account-wide Observability pages have data | The flag views only show telemetry recorded inside a span that carries `feature_flag.*` attributes and a flag evaluation. Use `logFlagEvent()` / `recordFlagError()` for anything you want attributed to the flag; widen the time range selector. |
+| Rule builder doesn't offer `plan` / `betaTester` | LaunchDarkly lists attributes it has seen from SDKs. Open Part 2 and click through the personas, then reload the flag page. You can also type the attribute name manually. |
+| Evaluation card says `Error: FLAG_NOT_FOUND` or `CLIENT_NOT_READY` | The `landing-hero-v-2` flag doesn't exist yet, isn't client-side available, or the SDK is still initializing. |
+| Alice sees v2 but the reason is a rule, not Individual target | Individual targets win over rules. If the reason is `RULE_MATCH`, the individual target wasn't saved. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

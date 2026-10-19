@@ -33,7 +33,15 @@ export const FLAG_KEYS = {
    * reporting dashboard. false = today's plain usage report table.
    */
   INSIGHTS_DASHBOARD: 'insights-dashboard',
+  /**
+   * REPLACE ME if you named your flag differently.
+   * Part 2: boolean flag around the landing-page hero. true = personalized
+   * hero (v2), false = classic hero. Targeted by context attributes.
+   */
+  LANDING_HERO_V2: 'landing-hero-v-2',
 } as const;
+
+export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];
 
 /**
  * The context the server evaluates flags against.
@@ -75,16 +83,18 @@ type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 export function logFlagEvent(
   message: string,
   level: LogLevel,
-  attrs: { value: boolean; event: string; [extra: string]: string | number | boolean },
+  attrs: { value: boolean; event: string; flag?: FlagKey; [extra: string]: string | number | boolean | undefined },
 ): void {
-  const { value, event, ...extra } = attrs;
+  const { value, event, flag = FLAG_KEYS.INSIGHTS_DASHBOARD, ...rest } = attrs;
+  const extra: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(rest)) if (v !== undefined) extra[k] = v;
   const line = `[LaunchDarkly][${event}] ${message}`;
   if (level === 'error') console.error(line);
   else if (level === 'warn') console.warn(line);
   else console.log(line);
 
   const attributes: Record<string, string | number | boolean> = {
-    'feature_flag.key': FLAG_KEYS.INSIGHTS_DASHBOARD,
+    'feature_flag.key': flag,
     'feature_flag.result.value': String(value),
     'feature_flag.provider.name': 'LaunchDarkly',
     'feature_flag.context.id': SERVER_CONTEXT_KEY,
@@ -98,7 +108,7 @@ export function logFlagEvent(
 
   void LDObserve.runWithHeaders(`incident.${event}`, {}, async (span) => {
     span.setAttributes(attributes);
-    await ldClient.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, serverContext, false);
+    await ldClient.boolVariation(flag, serverContext, false);
     LDObserve.recordLog(message, level, undefined, undefined, attributes);
   }).catch((err: unknown) => console.warn('[LaunchDarkly] telemetry failed:', err));
 }

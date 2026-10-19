@@ -1,13 +1,14 @@
 import { useInitializationStatus } from '@launchdarkly/react-sdk';
+import { useCurrentContextName } from './ld/useIdentify';
 import { useState } from 'react';
 import { AdminDrawer, readDrawerOpen } from './components/AdminDrawer';
-import { demoContext } from './ld/provider';
 import { SCENARIOS, useScenario } from './scenarios';
 
 export function App() {
   const init = useInitializationStatus();
   const [scenario, selectScenario] = useScenario();
   const [drawerOpen, setDrawerOpen] = useState(readDrawerOpen);
+  const contextName = useCurrentContextName();
 
   const connected = init.status === 'complete';
 
@@ -22,7 +23,7 @@ export function App() {
 
           <div className="topbar-right">
             <span className="muted small signed-in">
-              Signed in as <strong>{demoContext.name}</strong>
+              Signed in as <strong>{contextName}</strong>
             </span>
 
             {/* Admin tooling lives in the drawer so the customer view stays clean. */}

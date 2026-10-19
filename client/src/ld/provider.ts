@@ -51,6 +51,9 @@ export function createProvider() {
     // Streaming is on by default when a variation hook is used; set explicitly
     // so it's obvious during the demo that real-time updates are intentional.
     streaming: true,
+    // Ask LaunchDarkly to include the evaluation *reason* (individual target,
+    // rule match, fallthrough) so Part 2's Evaluation card can explain itself.
+    withReasons: true,
     // LaunchDarkly Observability + Session Replay. They reuse the client-side
     // ID (no extra keys) and send errors, network calls, logs and a replay of
     // the session to LaunchDarkly > Observability. During the demo this is
