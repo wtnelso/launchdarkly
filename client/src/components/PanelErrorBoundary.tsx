@@ -1,8 +1,7 @@
-import { LDObserve } from '@launchdarkly/observability';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { reportError, type ReportErrorResponse } from '../api';
 import { FLAG_KEYS } from '../ld/flags';
-import { logFlagEvent } from '../ld/telemetry';
+import { logFlagEvent, recordFlagError } from '../ld/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -25,10 +24,9 @@ interface State {
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
  * reset needed.
  *
- * The crash is also recorded with LaunchDarkly Observability. Errors caught by
- * a boundary are not "uncaught", so the plugin's automatic capture would miss
- * them; recordError makes them show up under Observability > Errors with the
- * session replay attached.
+ * The crash is also recorded with LaunchDarkly Observability (see
+ * recordFlagError) so it shows up under the flag's Monitoring > Errors view
+ * with the session replay attached.
  */
 /**
  * React (in development, and under StrictMode) can replay a render that threw,
@@ -63,9 +61,10 @@ export class PanelErrorBoundary extends Component<Props, State> {
       value: true,
       component: 'InsightsDashboard',
     });
-    LDObserve.recordError(error, 'Insights dashboard failed to render', {
+    recordFlagError(error, 'Insights dashboard failed to render', {
+      event: 'crash',
+      value: true,
       component: 'InsightsDashboard',
-      flag: FLAG_KEYS.INSIGHTS_DASHBOARD,
     });
     void reportOnce(error.message).then(
       (report) => {

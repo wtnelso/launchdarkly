@@ -229,12 +229,16 @@ per request from the SDK's in-memory store (no network call). `routes/flagEvents
   inputs but keeps text readable; use `'strict'` with real customer data.
 - API: `server/src/ld.ts` adds `@launchdarkly/observability-node` to the Node SDK (it authenticates
   with the SDK key), so server-side flag evaluations, logs and traces land in the same place.
-- **Flag-scoped logs.** The flag's **Monitoring → Logs** tab only lists logs tagged with the
-  `feature_flag.*` attributes (`feature_flag.key`, `feature_flag.result.value`, …). Both tiers go
-  through a small `logFlagEvent()` helper (`client/src/ld/telemetry.ts`, `server/src/ld.ts`) that
-  adds those tags, so the whole incident reads as one timeline there: flag changed → bad data
-  injected → crash → crash reported → trigger fired → chaos reset → flag changed. Untagged
-  `console.*` output still appears on the account-wide Observability → Logs page.
+- **Flag-scoped logs and errors.** The flag's **Monitoring** tab (Errors, Logs, Traces) only shows
+  telemetry LaunchDarkly can tie to the flag: spans that carry the `feature_flag.*` attributes
+  (`feature_flag.key`, `feature_flag.set.id`, `feature_flag.result.value`, …) and contain a flag
+  evaluation, which is exactly what the plugins emit for every evaluation. Both tiers therefore go
+  through small helpers (`logFlagEvent()` / `recordFlagError()` in `client/src/ld/telemetry.ts`,
+  `logFlagEvent()` in `server/src/ld.ts`) that open such a span, evaluate the flag inside it, and
+  record the log or error there. The whole incident then reads as one timeline under the flag:
+  flag changed → bad data injected → crash → crash reported → trigger fired → chaos reset → flag
+  changed, grouped by variation. Untagged `console.*` output still appears on the account-wide
+  Observability → Logs page.
 
 **Remediation.** A flag trigger is an unguessable webhook URL bound to one action on one flag in
 one environment. Anything that can make an HTTP POST — curl, an APM alert, this app's
@@ -301,5 +305,5 @@ context with attributes.
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
 | Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
 | Nothing under Observability → Errors in LaunchDarkly | Events batch and can take a minute to appear. Reload the page once after setting the client-side ID; check the browser console for plugin errors. |
-| Flag → Monitoring → Logs is empty but Observability → Logs has data | The flag view only shows logs tagged with `feature_flag.key`. Use `logFlagEvent()` (both tiers) for anything you want attributed to the flag; widen the time range selector. |
+| Flag → Monitoring → Logs/Errors is empty but the account-wide Observability pages have data | The flag views only show telemetry recorded inside a span that carries `feature_flag.*` attributes and a flag evaluation. Use `logFlagEvent()` / `recordFlagError()` for anything you want attributed to the flag; widen the time range selector. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

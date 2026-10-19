@@ -3,6 +3,9 @@ import { useEffect, useState } from 'react';
 import { FLAG_KEYS } from '../ld/flags';
 import { logFlagEvent } from '../ld/telemetry';
 
+/** React's development double-mount would log the page-load evaluation twice; only log it once. */
+let pageLoadLogged = false;
+
 interface Entry {
   at: string;
   value: boolean;
@@ -46,10 +49,13 @@ export function FlagActivityLog() {
 
     client.on(eventName, onChange);
     setEntries([{ at: new Date().toISOString(), value: lastValue, source: 'initial' }]);
-    logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} evaluated as ${lastValue} on page load`, 'info', {
-      event: 'flag_initial',
-      value: lastValue,
-    });
+    if (!pageLoadLogged) {
+      pageLoadLogged = true;
+      logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} evaluated as ${lastValue} on page load`, 'info', {
+        event: 'flag_initial',
+        value: lastValue,
+      });
+    }
 
     // Always unsubscribe on unmount to avoid leaks.
     return () => client.off(eventName, onChange);
