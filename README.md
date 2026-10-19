@@ -231,7 +231,7 @@ context with attributes.
 │       │   └── ServerStatus.tsx        SSE view of the server-side listener
 │       └── usePricing.ts, api.ts
 ├── server/                   Express 5 + TypeScript
-│   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, PORT (+ REST fallback vars)
+│   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, API_PORT (+ REST fallback vars)
 │   └── src/
 │       ├── ld.ts             Node SDK singleton, waitForInitialization
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
@@ -254,4 +254,4 @@ context with attributes.
 | `npm run remediate` → `LD_TRIGGER_URL is not set` | Create the trigger (setup step 4) or use `npm run remediate:api`. |
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
 | Sidebar says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
-| Port already in use | Change `PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |
+| Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

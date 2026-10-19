@@ -16,7 +16,8 @@ import { flagEventsRouter } from './routes/flagEvents.js';
 import { pricingRouter } from './routes/pricing.js';
 import { remediateRouter } from './routes/remediate.js';
 
-const port = Number(process.env.PORT ?? 3001);
+// API_PORT (not the generic PORT) so hosting tools that inject PORT can't collide with Vite.
+const port = Number(process.env.API_PORT ?? 3001);
 
 const app = express();
 app.use(cors()); // harmless locally; lets you hit the API from any origin while demoing

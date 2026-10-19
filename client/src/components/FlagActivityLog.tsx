@@ -25,15 +25,21 @@ export function FlagActivityLog() {
   useEffect(() => {
     const eventName = `change:${FLAG_KEYS.NEW_PRICING_PANEL}`;
 
+    let lastValue = client.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+
     // The change event doesn't carry the value, so read it inside the handler.
+    // The SDK also emits the event while it finishes loading flags, so only log
+    // when the value actually differs from what we last saw.
     const onChange = () => {
       const value = client.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+      if (value === lastValue) return;
+      lastValue = value;
       const entry: Entry = { at: new Date().toISOString(), value, source: 'stream' };
       setEntries((prev) => [entry, ...prev].slice(0, 20));
     };
 
     client.on(eventName, onChange);
-    setEntries([{ at: new Date().toISOString(), value: client.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false), source: 'initial' }]);
+    setEntries([{ at: new Date().toISOString(), value: lastValue, source: 'initial' }]);
 
     // Always unsubscribe on unmount to avoid leaks.
     return () => client.off(eventName, onChange);
