@@ -2,15 +2,15 @@
 
 **Scenario.** ABC Company must ship faster without lowering quality. The team needs to test new
 code in production safely, release it with confidence, and roll it back in seconds if a bug slips
-through. This app shows that workflow with a new pricing lineup on the billing dashboard: two plans
-today, three plans (with annual billing and a recommended tier) behind the flag.
+through. This app shows that workflow with a new **Insights** reporting dashboard: a plain monthly
+usage table today, KPI tiles, trend charts and a team breakdown behind the flag.
 
 ## What to look for
 
 | Requirement | Where it lives | What you'll see |
 | --- | --- | --- |
-| Flag around a new feature | `client/src/components/FeatureGate.tsx` (`useBoolVariation`) and `server/src/routes/pricing.ts` (`boolVariation`) | Flag on → three plans, annual toggle, highlighted tier + new API payload. Flag off → two plans + legacy payload. |
-| Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:new-pricing-panel')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:new-pricing-panel')` → SSE) | Toggle in LaunchDarkly; both log cards in the Admin drawer print a timestamped line and the panel swaps with no reload. |
+| Flag around a new feature | `client/src/components/FeatureGate.tsx` (`useBoolVariation`) and `server/src/routes/reports.ts` (`boolVariation`) | Flag on → Insights dashboard + new API payload. Flag off → usage table + legacy payload. |
+| Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:insights-dashboard')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:insights-dashboard')` → SSE) | Toggle in LaunchDarkly; both log cards in the Admin drawer print a timestamped line and the panel swaps with no reload. |
 | Remediate with a trigger | `scripts/remediate.sh` (manual curl), `server/src/routes/remediate.ts` (automatic on crash) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event. |
 
 ## Layout
@@ -38,7 +38,7 @@ Open the Admin drawer first so the audience can watch the logs.
 ## Design decisions worth calling out
 
 - **Fail closed.** Every evaluation passes `false` as the default, so an outage of LaunchDarkly or
-  a misconfigured key degrades to the known-good two-plan pricing.
+  a misconfigured key degrades to the known-good usage table.
 - **Both SDK sides.** The browser uses the client-side ID (public, flag-scoped); the API uses the
   SDK key (secret, full environment). Showing both demonstrates the right key goes in the right
   place.
@@ -53,8 +53,8 @@ Open the Admin drawer first so the audience can watch the logs.
 
 _Add screenshots here before submitting:_
 
-- [ ] Flag off — two plans with the Admin drawer open, both listener logs showing `false`
-- [ ] Flag on — three plans with annual toggle, logs showing `true`, server listener "new"
+- [ ] Flag off — usage table with the Admin drawer open, both listener logs showing `false`
+- [ ] Flag on — Insights dashboard, logs showing `true`, server listener "new"
 - [ ] Crash card after "Simulate production bug"
 - [ ] Terminal output of `npm run remediate` (HTTP 200)
 - [ ] LaunchDarkly flag History tab showing the trigger entry

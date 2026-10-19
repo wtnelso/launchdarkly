@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Remediate (fallback): turn the `new-pricing-panel` flag OFF with the
+# Remediate (fallback): turn the `insights-dashboard` flag OFF with the
 # LaunchDarkly REST API instead of a flag trigger.
 #
 # Use this if your LaunchDarkly plan does not include flag triggers. It sends a
@@ -17,7 +17,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="$ROOT/server/.env"
-FLAG_KEY="${LD_FLAG_KEY:-new-pricing-panel}"
+FLAG_KEY="${LD_FLAG_KEY:-insights-dashboard}"
 
 if [[ -f "$ENV_FILE" ]]; then
   # shellcheck disable=SC1090

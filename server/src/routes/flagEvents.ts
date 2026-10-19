@@ -8,7 +8,7 @@
  * polling or page reload.
  */
 import { Router, type Response } from 'express';
-import { FLAG_KEYS, isNewPricingPanelOn, ldClient } from '../ld.js';
+import { FLAG_KEYS, isNewReportingOn, ldClient } from '../ld.js';
 
 interface FlagEvent {
   key: string;
@@ -26,8 +26,8 @@ function send(res: Response, event: FlagEvent): void {
 
 async function broadcast(reason: FlagEvent['reason']): Promise<void> {
   const event: FlagEvent = {
-    key: FLAG_KEYS.NEW_PRICING_PANEL,
-    value: await isNewPricingPanelOn(),
+    key: FLAG_KEYS.INSIGHTS_DASHBOARD,
+    value: await isNewReportingOn(),
     at: new Date().toISOString(),
     reason,
   };
@@ -38,7 +38,7 @@ async function broadcast(reason: FlagEvent['reason']): Promise<void> {
 // --- The listener -----------------------------------------------------------
 // Registered once for the life of the process. The event payload does not
 // include the new value, so we call variation() inside the handler.
-ldClient.on(`update:${FLAG_KEYS.NEW_PRICING_PANEL}`, () => {
+ldClient.on(`update:${FLAG_KEYS.INSIGHTS_DASHBOARD}`, () => {
   void broadcast('update');
 });
 
@@ -54,8 +54,8 @@ flagEventsRouter.get('/flag-events', async (req, res) => {
 
   // Tell the new subscriber the current value right away.
   send(res, {
-    key: FLAG_KEYS.NEW_PRICING_PANEL,
-    value: await isNewPricingPanelOn(),
+    key: FLAG_KEYS.INSIGHTS_DASHBOARD,
+    value: await isNewReportingOn(),
     at: new Date().toISOString(),
     reason: 'initial',
   });

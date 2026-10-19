@@ -1,10 +1,10 @@
 /**
- * ABC Company billing API - a tiny Express server that shows the LaunchDarkly
+ * ABC Company analytics API - a tiny Express server that shows the LaunchDarkly
  * Node.js server SDK alongside the React client SDK.
  *
  * Routes (all proxied from the Vite dev server under /api):
  *   GET  /api/health        - liveness + SDK initialization status
- *   GET  /api/pricing       - flag-dependent pricing data
+ *   GET  /api/reports/usage - flag-dependent usage report (legacy table vs Insights)
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
  *   POST /api/report-error  - optional automatic kill switch via flag trigger
  */
@@ -13,7 +13,7 @@ import cors from 'cors';
 import express from 'express';
 import { ldClient, waitForLaunchDarkly } from './ld.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
-import { pricingRouter } from './routes/pricing.js';
+import { reportsRouter } from './routes/reports.js';
 import { remediateRouter } from './routes/remediate.js';
 
 // API_PORT (not the generic PORT) so hosting tools that inject PORT can't collide with Vite.
@@ -26,7 +26,7 @@ app.use(express.json());
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, launchDarklyInitialized: ldClient.initialized() });
 });
-app.use('/api', pricingRouter);
+app.use('/api', reportsRouter);
 app.use('/api', flagEventsRouter);
 app.use('/api', remediateRouter);
 
@@ -34,7 +34,7 @@ async function main(): Promise<void> {
   await waitForLaunchDarkly();
 
   const server = app.listen(port, () => {
-    console.log(`[Server] ABC billing API listening on http://localhost:${port}`);
+    console.log(`[Server] ABC analytics API listening on http://localhost:${port}`);
   });
 
   // Graceful shutdown: flush analytics events, then close the SDK's stream.

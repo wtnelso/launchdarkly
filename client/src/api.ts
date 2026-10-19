@@ -1,25 +1,55 @@
-/** Types and helpers for the ABC billing API (server/src/routes). */
+/** Types and helpers for the ABC analytics API (server/src/routes). */
 
-export interface Plan {
+export interface MonthRow {
+  month: string;
+  activeUsers: number;
+  apiCalls: number;
+  storageGb: number;
+}
+
+export interface Kpi {
   id: string;
-  name: string;
-  monthlyPrice: number;
-  annualPrice?: number;
-  features: string[];
-  highlighted?: boolean;
+  label: string;
+  value: number;
+  unit: '' | 'GB' | 'ms';
+  deltaPct: number;
 }
 
-export interface PricingResponse {
+export interface SeriesPoint {
+  date: string;
+  activeUsers: number;
+  apiCalls: number;
+}
+
+export interface TeamUsage {
+  team: string;
+  apiCalls: number;
+  sharePct: number;
+}
+
+export interface LegacyUsageReport {
   flag: string;
-  variant: 'new' | 'legacy';
-  evaluatedAt: string;
-  plans: Plan[];
+  variant: 'legacy';
+  generatedAt: string;
+  months: MonthRow[];
 }
 
-export async function fetchPricing(): Promise<PricingResponse> {
-  const res = await fetch('/api/pricing');
-  if (!res.ok) throw new Error(`GET /api/pricing failed: ${res.status}`);
-  return (await res.json()) as PricingResponse;
+export interface InsightsReport {
+  flag: string;
+  variant: 'new';
+  generatedAt: string;
+  period: { from: string; to: string };
+  kpis: Kpi[];
+  series: SeriesPoint[];
+  byTeam: TeamUsage[];
+}
+
+export type UsageReport = LegacyUsageReport | InsightsReport;
+
+export async function fetchUsageReport(): Promise<UsageReport> {
+  const res = await fetch('/api/reports/usage');
+  if (!res.ok) throw new Error(`GET /api/reports/usage failed: ${res.status}`);
+  return (await res.json()) as UsageReport;
 }
 
 export interface ReportErrorResponse {
@@ -35,4 +65,11 @@ export async function reportError(flag: string, message: string): Promise<Report
     body: JSON.stringify({ flag, message }),
   });
   return (await res.json()) as ReportErrorResponse;
+}
+
+/** 12980000 -> "13.0M", 544 -> "544", 1234 -> "1.2K" */
+export function formatCompact(n: number): string {
+  if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
+  return n.toLocaleString();
 }

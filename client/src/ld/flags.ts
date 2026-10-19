@@ -7,9 +7,10 @@
 export const FLAG_KEYS = {
   /**
    * REPLACE ME if you named your flag differently.
-   * Boolean flag. true = release the redesigned pricing panel, false = legacy panel.
+   * Boolean flag. true = release the new Insights reporting dashboard,
+   * false = today's plain usage report table.
    * Must have "Available on client-side SDKs" enabled in LaunchDarkly or the
    * React SDK will never see it and will always return the default (false).
    */
-  NEW_PRICING_PANEL: 'new-pricing-panel',
+  INSIGHTS_DASHBOARD: 'insights-dashboard',
 } as const;

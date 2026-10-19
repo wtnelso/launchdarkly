@@ -9,16 +9,16 @@ import { FLAG_KEYS } from '../../ld/flags';
  * affects the customer-facing view.
  */
 export function Part1Admin() {
-  const flagOn = useBoolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
-  const { crashNewPanel, setCrashNewPanel } = useDemoControls();
+  const flagOn = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+  const { crashNewFeature, setCrashNewFeature } = useDemoControls();
 
   return (
     <>
       <div className="card intro">
         <h3>Release control</h3>
         <p className="small">
-          Flag <code>{FLAG_KEYS.NEW_PRICING_PANEL}</code> gates the pricing panel. Toggle it in the LaunchDarkly UI and
-          watch the page switch instantly - no reload.
+          Flag <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> gates the Insights dashboard. Toggle it in the LaunchDarkly UI
+          and watch the page switch instantly - no reload.
         </p>
         <ol className="small steps">
           <li>
@@ -39,18 +39,18 @@ export function Part1Admin() {
           <span className={`pill ${flagOn ? 'on' : 'off'}`}>{flagOn ? 'Released' : 'Rolled back'}</span>
         </div>
         <p className="small muted">
-          Pretend a regression shipped inside the new pricing panel. The error boundary reports it to the API, which
+          Pretend a regression shipped inside the Insights dashboard. The error boundary reports it to the API, which
           fires the flag trigger (if <code>LD_TRIGGER_URL</code> is set).
         </p>
         <button
           className="btn btn-danger"
-          disabled={!flagOn || crashNewPanel}
-          onClick={() => setCrashNewPanel(true)}
-          title={flagOn ? 'Throw an error inside the new pricing panel' : 'Turn the flag on first'}
+          disabled={!flagOn || crashNewFeature}
+          onClick={() => setCrashNewFeature(true)}
+          title={flagOn ? 'Throw an error inside the Insights dashboard' : 'Turn the flag on first'}
         >
           Simulate production bug
         </button>
-        {!flagOn && <p className="small muted">Turn the flag on first - the new panel isn't rendered right now.</p>}
+        {!flagOn && <p className="small muted">Turn the flag on first - the Insights dashboard isn't rendered right now.</p>}
       </div>
 
       <FlagActivityLog />

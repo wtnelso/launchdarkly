@@ -19,19 +19,19 @@ interface Entry {
  */
 export function FlagActivityLog() {
   const client = useLDClient();
-  const current = useBoolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+  const current = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
   const [entries, setEntries] = useState<Entry[]>([]);
 
   useEffect(() => {
-    const eventName = `change:${FLAG_KEYS.NEW_PRICING_PANEL}`;
+    const eventName = `change:${FLAG_KEYS.INSIGHTS_DASHBOARD}`;
 
-    let lastValue = client.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+    let lastValue = client.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
 
     // The change event doesn't carry the value, so read it inside the handler.
     // The SDK also emits the event while it finishes loading flags, so only log
     // when the value actually differs from what we last saw.
     const onChange = () => {
-      const value = client.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+      const value = client.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
       if (value === lastValue) return;
       lastValue = value;
       const entry: Entry = { at: new Date().toISOString(), value, source: 'stream' };
@@ -52,7 +52,7 @@ export function FlagActivityLog() {
         <span className={`pill ${current ? 'on' : 'off'}`}>{current ? 'Released' : 'Rolled back'}</span>
       </div>
       <p className="muted small">
-        <code>client.on('change:{FLAG_KEYS.NEW_PRICING_PANEL}')</code> in this browser
+        <code>client.on('change:{FLAG_KEYS.INSIGHTS_DASHBOARD}')</code> in this browser
       </p>
       <ul className="log">
         {entries.map((e) => (

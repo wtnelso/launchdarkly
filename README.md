@@ -1,13 +1,13 @@
-# ABC Company Billing Dashboard — LaunchDarkly Release & Remediate demo
+# ABC Company Analytics — LaunchDarkly Release & Remediate demo
 
 A small React + Node application that shows how ABC Company can **ship features faster without
 adding risk** by wrapping new code in a LaunchDarkly feature flag:
 
 | Expectation | How this app demonstrates it |
 | --- | --- |
-| **Feature flag** around a new feature | The new pricing lineup is gated by the boolean flag `new-pricing-panel`. Flag **off** = today's two plans; flag **on** = three plans with annual billing and a recommended tier. |
-| **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:new-pricing-panel')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:new-pricing-panel')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
-| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The UI also has a "Simulate production bug" button; when the new panel crashes, the server can fire the same trigger automatically (an automatic kill switch). |
+| **Feature flag** around a new feature | The new **Insights** reporting dashboard is gated by the boolean flag `insights-dashboard`. Flag **off** = today's plain monthly usage table; flag **on** = KPI tiles with deltas, 30-day trend charts and a per-team breakdown. |
+| **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:insights-dashboard')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:insights-dashboard')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
+| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer also has a "Simulate production bug" button; when the new dashboard crashes, the server can fire the same trigger automatically (an automatic kill switch). |
 
 This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise. Code paths
 that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments.
@@ -33,15 +33,15 @@ that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments
  Browser (http://localhost:5173)                      LaunchDarkly
  ┌──────────────────────────────────┐   streaming     ┌──────────────────┐
  │ React 19 + Vite                  │◄───────────────►│  flag:           │
- │ @launchdarkly/react-sdk          │  client-side ID │  new-pricing-    │
- │  • useBoolVariation()  (gate)    │                 │  panel           │
+ │ @launchdarkly/react-sdk          │  client-side ID │  new-reporting-  │
+ │  • useBoolVariation()  (gate)    │                 │  dashboard       │
  │  • client.on('change:…') (log)   │                 │                  │
  └───────────────┬──────────────────┘                 │  flag trigger    │
                  │ /api/* (Vite proxy)                │  (webhook URL)   │
  ┌───────────────▼──────────────────┐   streaming     │        ▲         │
  │ Express 5 (http://localhost:3001)│◄───────────────►│        │         │
  │ @launchdarkly/node-server-sdk    │  SDK key        └────────┼─────────┘
- │  • GET  /api/pricing             │                          │ POST
+ │  • GET  /api/reports/usage       │                          │ POST
  │  • GET  /api/flag-events (SSE)   │      curl (npm run remediate)
  │  • POST /api/report-error ───────┼──────────────────────────┘
  └──────────────────────────────────┘
@@ -49,7 +49,7 @@ that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments
 
 - **Client** evaluates the flag with the LaunchDarkly **client-side ID** (safe in browsers).
 - **Server** evaluates the same flag with the **server-side SDK key** (secret) and serves
-  flag-dependent pricing data, so the demo shows the whole stack switching, not just the UI.
+  flag-dependent report data, so the demo shows the whole stack switching, not just the UI.
 - Each tier holds its own streaming connection to LaunchDarkly; neither polls.
 
 ## Prerequisites and assumptions
@@ -77,12 +77,12 @@ Use whichever you like, but **use the same environment for every key below**.
 ### 2. Create the feature flag
 
 1. **Flags** → **Create flag**.
-2. **Name:** `New pricing panel`. The **key** auto-fills as `new-pricing-panel` — **keep this
+2. **Name:** `Insights dashboard`. The **key** auto-fills as `insights-dashboard` — **keep this
    exact key** (the code references it in `client/src/ld/flags.ts` and `server/src/ld.ts`; if you
    change it, change it there too).
-3. **Description:** `Releases the redesigned 3-tier pricing panel on the billing dashboard.`
-4. **Flag type:** Boolean. Optionally rename variations to `Released (new panel)` / `Rolled back
-   (legacy)`.
+3. **Description:** `Releases the new Insights reporting dashboard (KPIs, trend charts, team breakdown).`
+4. **Flag type:** Boolean. Optionally rename variations to `Released (Insights)` / `Rolled back
+   (usage table)`.
 5. Make sure **"SDKs using Client-side ID"** (a.k.a. *Available to client-side SDKs*) is **checked**.
    New accounts default this on; on older accounts it lives in the flag's right sidebar under
    **Advanced controls**. Without it the React app can never see the flag.
@@ -101,7 +101,7 @@ you can type "SDK key" to copy keys quickly.)
 
 ### 4. Create the flag trigger (remediation)
 
-1. Open the `new-pricing-panel` flag. Next to the environment name click the **⋯** menu →
+1. Open the `insights-dashboard` flag. Next to the environment name click the **⋯** menu →
    **Configuration in environment**.
 2. In the **Triggers** section click **+ Add trigger**.
 3. **Trigger type:** `Generic trigger`. **Action:** `Turn flag off`. **Save trigger**.
@@ -138,8 +138,8 @@ Edit the two `.env` files and paste the values from the setup above:
 npm run dev
 ```
 
-Open <http://localhost:5173>. You'll see the customer-facing billing page: because the flag is off
-it shows today's two pricing plans (Basic and Business). The top-right corner has two
+Open <http://localhost:5173>. You'll see the customer-facing analytics page: because the flag is off
+it shows today's **Usage report**, a plain monthly table with an Export CSV button. The top-right corner has two
 controls that customers would never see:
 
 - **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts. Each part has
@@ -167,12 +167,12 @@ Other commands:
 Put the LaunchDarkly flag page and the dashboard side by side, with the **Admin** drawer open so
 the logs are visible. **Never reload the browser** during the demo — that is the point.
 
-1. **Release.** In LaunchDarkly flip `new-pricing-panel` **On** and **Review and save**.
-   Within about a second the page gains a third plan, a Monthly/Annual billing toggle, and a
-   highlighted "Most popular" tier. In the Admin
+1. **Release.** In LaunchDarkly flip `insights-dashboard` **On** and **Review and save**.
+   Within about a second the table is replaced by the **Insights** dashboard: KPI tiles with
+   month-over-month deltas, 30-day trend charts, and usage by team. In the Admin
    drawer, *Client listener* logs `Flag changed → true` and *Server listener* logs the same from the
-   Node API. The drawer's *Server listener* card shows the API is serving new pricing too.
-2. **Rollback.** Flip the flag **Off**. The two-plan lineup is back instantly, both logs record
+   Node API. The drawer's *Server listener* card shows the API is serving the Insights data too.
+2. **Rollback.** Flip the flag **Off**. The usage table is back instantly, both logs record
    `→ false`. That is your zero-downtime rollback: no deploy, no restart, no reload.
 3. **Remediate (manual, via flag trigger).** Flip the flag **On** again. Now imagine an alert
    fires. In a terminal run:
@@ -182,15 +182,15 @@ the logs are visible. **Never reload the browser** during the demo — that is t
    ```
 
    You'll see `HTTP 200`, the flag turns **Off** in LaunchDarkly on its own, and the dashboard
-   rolls back to the two-plan lineup — again with no reload. Equivalent raw `curl`:
+   rolls back to the usage table — again with no reload. Equivalent raw `curl`:
 
    ```bash
    curl -X POST "$LD_TRIGGER_URL" -H 'Content-Type: application/json' \
-     -d '{"eventName":"Rolling back new pricing panel","url":"http://localhost:5173"}'
+     -d '{"eventName":"Rolling back Insights dashboard","url":"http://localhost:5173"}'
    ```
 
 4. **Remediate (automatic kill switch, bonus).** Flip the flag **On** once more and, in the Admin
-   drawer under **Demo controls**, click **Simulate production bug**. The new panel crashes, an
+   drawer under **Demo controls**, click **Simulate production bug**. The Insights dashboard crashes, an
    error boundary contains it (the rest of the dashboard keeps working) and reports it to the API,
    and the API fires the same trigger. Watch the flag turn Off by itself and the UI roll back — no human in the loop.
    Without `LD_TRIGGER_URL` the crash card instead tells the operator how to remediate by hand.
@@ -202,17 +202,17 @@ the logs are visible. **Never reload the browser** during the demo — that is t
 ## How it works
 
 **Flag evaluation and the listener (client).** `client/src/components/FeatureGate.tsx` calls
-`useBoolVariation('new-pricing-panel', false)`. The hook returns the value for the current context
+`useBoolVariation('insights-dashboard', false)`. The hook returns the value for the current context
 *and* subscribes the component to changes; the SDK keeps a streaming connection to LaunchDarkly,
 so a toggle produces a re-render with no polling and no reload. The default `false` means the app
-fails closed to today's pricing if LaunchDarkly is unreachable.
-`FlagActivityLog.tsx` registers the lower-level `client.on('change:new-pricing-panel', …)` event
+fails closed to today's usage table if LaunchDarkly is unreachable.
+`FlagActivityLog.tsx` registers the lower-level `client.on('change:insights-dashboard', …)` event
 explicitly so you can see the mechanism the hook is built on.
 
 **Flag evaluation and the listener (server).** `server/src/ld.ts` creates one `LDClient` for the
-process (always a singleton) and waits for initialization. `routes/pricing.ts` evaluates the flag
+process (always a singleton) and waits for initialization. `routes/reports.ts` evaluates the flag
 per request from the SDK's in-memory store (no network call). `routes/flagEvents.ts` registers
-`ldClient.on('update:new-pricing-panel', …)`, re-evaluates, and broadcasts over SSE.
+`ldClient.on('update:insights-dashboard', …)`, re-evaluates, and broadcasts over SSE.
 
 **Remediation.** A flag trigger is an unguessable webhook URL bound to one action on one flag in
 one environment. Anything that can make an HTTP POST — curl, an APM alert, this app's
@@ -239,18 +239,19 @@ context with attributes.
 │       ├── ld/flags.ts       flag keys
 │       ├── components/
 │       │   ├── AdminDrawer.tsx         collapsible overlay for admin tooling
-│       │   ├── FeatureGate.tsx         useBoolVariation → PricingPanel variant
-│       │   ├── PricingPanel.tsx        one layout, two variants: legacy (2 plans) / new (3 plans)
+│       │   ├── FeatureGate.tsx         useBoolVariation → Insights dashboard or usage table
+│       │   ├── UsageReportTable.tsx    the legacy report (flag off)
+│       │   ├── InsightsDashboard.tsx   the new feature (flag on): KPIs, trend charts, team breakdown
 │       │   ├── PanelErrorBoundary.tsx  catches the crash, calls /api/report-error
 │       │   ├── FlagActivityLog.tsx     explicit client.on('change:…') listener
 │       │   └── ServerStatus.tsx        SSE view of the server-side listener
-│       └── usePricing.ts, api.ts
+│       └── useUsageReport.ts, api.ts
 ├── server/                   Express 5 + TypeScript
 │   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, API_PORT (+ REST fallback vars)
 │   └── src/
 │       ├── ld.ts             Node SDK singleton, waitForInitialization
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
-│       └── routes/           pricing.ts, flagEvents.ts (SSE listener), remediate.ts
+│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts
 ├── scripts/
 │   ├── remediate.sh          curl → flag trigger
 │   └── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)
@@ -265,7 +266,7 @@ context with attributes.
 | Header shows `LaunchDarkly: failed` | Wrong client-side ID, or you pasted the SDK key by mistake. The client-side ID has no `sdk-` prefix. |
 | Flag toggles do nothing in the browser, but the server log shows the change | The flag is not available to client-side SDKs. Open the flag → right sidebar → **Advanced controls** → enable **SDKs using Client-side ID**. |
 | Server exits with `LD_SDK_KEY is not set` | Create `server/.env` from the example and paste the `sdk-…` key. |
-| Server log: `Server SDK failed to initialize` | Wrong SDK key, or no network. Flags fall back to defaults (two-plan pricing). |
+| Server log: `Server SDK failed to initialize` | Wrong SDK key, or no network. Flags fall back to defaults (usage table). |
 | `npm run remediate` → `LD_TRIGGER_URL is not set` | Create the trigger (setup step 4) or use `npm run remediate:api`. |
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
 | Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |

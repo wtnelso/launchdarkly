@@ -2,20 +2,20 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 
 /**
  * Shared state for demo-only controls that live in the admin drawer but act on
- * the end-user view (e.g. "Simulate production bug" makes the new pricing
- * panel throw during render).
+ * the end-user view (e.g. "Simulate production bug" makes the Insights
+ * dashboard throw during render).
  */
 interface DemoControls {
-  /** When true, the new pricing variant throws on its next render. */
-  crashNewPanel: boolean;
-  setCrashNewPanel: (value: boolean) => void;
+  /** When true, the Insights dashboard throws on its next render. */
+  crashNewFeature: boolean;
+  setCrashNewFeature: (value: boolean) => void;
 }
 
 const DemoControlsContext = createContext<DemoControls | null>(null);
 
 export function DemoControlsProvider({ children }: { children: ReactNode }) {
-  const [crashNewPanel, setCrashNewPanel] = useState(false);
-  const value = useMemo(() => ({ crashNewPanel, setCrashNewPanel }), [crashNewPanel]);
+  const [crashNewFeature, setCrashNewFeature] = useState(false);
+  const value = useMemo(() => ({ crashNewFeature, setCrashNewFeature }), [crashNewFeature]);
   return <DemoControlsContext.Provider value={value}>{children}</DemoControlsContext.Provider>;
 }
 

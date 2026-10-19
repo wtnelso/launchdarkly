@@ -14,17 +14,17 @@ interface State {
 }
 
 /**
- * Catches a crash inside the new pricing panel so the rest of the dashboard
+ * Catches a crash inside the Insights dashboard so the rest of the page
  * keeps working, then tells the server about it (POST /api/report-error).
  *
  * If the server has a LaunchDarkly flag trigger configured it fires it, the
- * flag turns OFF, and the parent <FeatureGate> swaps back to the legacy panel
+ * flag turns OFF, and the parent <FeatureGate> swaps back to the usage table
  * automatically. If not, the card tells the operator how to remediate by hand.
  *
  * Because <FeatureGate> only renders this boundary while the flag is ON, a
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
  * reset needed. onCrash resets the demo's crash switch so the re-released
- * panel renders healthy.
+ * dashboard renders healthy.
  */
 /**
  * React (in development, and under StrictMode) can replay a render that threw,
@@ -40,7 +40,7 @@ function reportOnce(message: string): Promise<ReportErrorResponse> {
   if (lastReport && lastReport.message === message && now - lastReport.at < REPORT_DEDUPE_MS) {
     return lastReport.promise;
   }
-  const promise = reportError(FLAG_KEYS.NEW_PRICING_PANEL, message);
+  const promise = reportError(FLAG_KEYS.INSIGHTS_DASHBOARD, message);
   lastReport = { message, at: now, promise };
   return promise;
 }
@@ -53,7 +53,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[PricingPanel:new] crashed:', error, info.componentStack);
+    console.error('[InsightsDashboard] crashed:', error, info.componentStack);
     this.props.onCrash?.();
     void reportOnce(error.message).then(
       (report) => this.setState({ report }),
@@ -68,17 +68,17 @@ export class PanelErrorBoundary extends Component<Props, State> {
     return (
       <section className="panel crashed" role="alert">
         <div className="panel-head">
-          <h2>New pricing panel failed to render</h2>
+          <h2>Insights dashboard failed to render</h2>
           <span className="tag danger">Incident</span>
         </div>
         <pre className="stack">{error.message}</pre>
 
-        {!report && <p className="muted">Reporting to the billing API…</p>}
+        {!report && <p className="muted">Reporting to the analytics API…</p>}
 
         {report?.remediated && (
           <p className="ok">
             Automatic kill switch fired the LaunchDarkly flag trigger (HTTP {report.triggerStatus}). The flag is
-            turning off - this panel will roll back to the legacy version in a moment, with no reload.
+            turning off - this page will roll back to the usage table in a moment, with no reload.
           </p>
         )}
 
@@ -96,7 +96,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
                 Run <code>npm run remediate:api</code> (REST API fallback)
               </li>
               <li>
-                Toggle <code>{FLAG_KEYS.NEW_PRICING_PANEL}</code> off in the LaunchDarkly UI
+                Toggle <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> off in the LaunchDarkly UI
               </li>
             </ol>
           </div>

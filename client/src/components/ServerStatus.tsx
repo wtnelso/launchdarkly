@@ -10,7 +10,7 @@ interface ServerEvent {
 
 /**
  * Shows the *server-side* listener. The Express API subscribes to
- * `ldClient.on('update:new-pricing-panel')` with the Node SDK and pushes each
+ * `ldClient.on('update:insights-dashboard')` with the Node SDK and pushes each
  * change to the browser over Server-Sent Events. Seeing both logs move at the
  * same moment proves the whole stack flipped - not just the UI.
  */
@@ -38,11 +38,11 @@ export function ServerStatus() {
         <span className={`pill ${connected ? 'on' : 'off'}`}>{connected ? 'SSE connected' : 'disconnected'}</span>
       </div>
       <p className="muted small">
-        <code>ldClient.on('update:{FLAG_KEYS.NEW_PRICING_PANEL}')</code> in the Node API
+        <code>ldClient.on('update:{FLAG_KEYS.INSIGHTS_DASHBOARD}')</code> in the Node API
       </p>
       {latest && (
         <p>
-          Server currently serves: <strong>{latest.value ? 'new' : 'legacy'}</strong> pricing
+          Server currently serves: <strong>{latest.value ? 'Insights dashboard' : 'usage table'}</strong>
         </p>
       )}
       <ul className="log">

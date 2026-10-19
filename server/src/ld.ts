@@ -25,8 +25,12 @@ if (!sdkKey) {
 
 /** Flag keys used by this demo. Keep in sync with client/src/ld/flags.ts. */
 export const FLAG_KEYS = {
-  /** Boolean flag that releases (true) or rolls back (false) the redesigned pricing panel. */
-  NEW_PRICING_PANEL: 'new-pricing-panel',
+  /**
+   * REPLACE ME if you named your flag differently.
+   * Boolean flag that releases (true) or rolls back (false) the new Insights
+   * reporting dashboard. false = today's plain usage report table.
+   */
+  INSIGHTS_DASHBOARD: 'insights-dashboard',
 } as const;
 
 /**
@@ -38,8 +42,8 @@ export const FLAG_KEYS = {
  */
 export const serverContext: LDContext = {
   kind: 'user',
-  key: 'abc-billing-api',
-  name: 'ABC Billing API (server)',
+  key: 'abc-analytics-api',
+  name: 'ABC Analytics API (server)',
 };
 
 export const ldClient: LDClient = init(sdkKey, {
@@ -63,6 +67,6 @@ export async function waitForLaunchDarkly(): Promise<void> {
 }
 
 /** Evaluate the Part 1 release flag for the server context. */
-export function isNewPricingPanelOn(): Promise<boolean> {
-  return ldClient.boolVariation(FLAG_KEYS.NEW_PRICING_PANEL, serverContext, false);
+export function isNewReportingOn(): Promise<boolean> {
+  return ldClient.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, serverContext, false);
 }

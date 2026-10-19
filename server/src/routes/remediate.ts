@@ -1,7 +1,7 @@
 /**
  * POST /api/report-error
  *
- * The React error boundary around the new pricing panel calls this when the
+ * The React error boundary around the Insights dashboard calls this when the
  * feature crashes in a user's browser. If a LaunchDarkly *flag trigger* URL
  * is configured, the server fires it, which turns the flag OFF in
  * LaunchDarkly. Every connected client then rolls back to the legacy panel
@@ -21,7 +21,7 @@ remediateRouter.post('/report-error', async (req, res) => {
   const { flag, message } = (req.body ?? {}) as { flag?: string; message?: string };
   console.warn(`[Remediate] Client reported an error in feature "${flag}": ${message}`);
 
-  if (flag !== FLAG_KEYS.NEW_PRICING_PANEL) {
+  if (flag !== FLAG_KEYS.INSIGHTS_DASHBOARD) {
     res.status(400).json({ remediated: false, reason: `Unknown flag "${flag}"` });
     return;
   }
@@ -43,7 +43,7 @@ remediateRouter.post('/report-error', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        eventName: `Automatic kill switch: ${message ?? 'error in new pricing panel'}`,
+        eventName: `Automatic kill switch: ${message ?? 'error in Insights dashboard'}`,
         url: 'http://localhost:5173',
       }),
     });

@@ -9,7 +9,7 @@ export function SetupRequired() {
       <header className="topbar">
         <div className="brand">
           <span className="logo">ABC</span>
-          <span>ABC Company · Billing Dashboard</span>
+          <span>ABC Company · Analytics</span>
         </div>
       </header>
       <main className="layout single">

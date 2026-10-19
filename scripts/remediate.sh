@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Remediate: turn the `new-pricing-panel` flag OFF via a LaunchDarkly flag trigger.
+# Remediate: turn the `insights-dashboard` flag OFF via a LaunchDarkly flag trigger.
 #
 # A flag trigger is a unique, unguessable webhook URL that LaunchDarkly gives you
 # per flag + environment. POSTing to it performs the trigger's action (here:
@@ -30,7 +30,7 @@ if [[ -z "${LD_TRIGGER_URL:-}" ]]; then
   exit 1
 fi
 
-echo "Firing LaunchDarkly flag trigger to turn OFF new-pricing-panel ..."
+echo "Firing LaunchDarkly flag trigger to turn OFF insights-dashboard ..."
 
 # The JSON body is optional. eventName/url are recorded in the flag's change
 # history so an auditor can see *why* the flag was turned off.
@@ -43,7 +43,7 @@ echo "HTTP $HTTP_STATUS"
 if [[ -s /tmp/ld-trigger-response.txt ]]; then cat /tmp/ld-trigger-response.txt; echo; fi
 
 if [[ "$HTTP_STATUS" == "200" || "$HTTP_STATUS" == "201" || "$HTTP_STATUS" == "204" ]]; then
-  echo "Done. Watch the dashboard roll back to the legacy pricing panel without a reload."
+  echo "Done. Watch the dashboard roll back to the usage table without a reload."
 else
   echo "Trigger call did not succeed. If the URL was reset in LaunchDarkly, update server/.env." >&2
   exit 1
