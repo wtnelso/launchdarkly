@@ -1,6 +1,6 @@
 import { LDObserve } from '@launchdarkly/observability';
 import { FLAG_KEYS } from './flags';
-import { DEMO_CONTEXT_KEY } from './provider';
+import { clientSideId, DEMO_CONTEXT_KEY, getLDClient } from './provider';
 
 type Level = 'debug' | 'info' | 'warn' | 'error';
 
@@ -13,21 +13,34 @@ interface FlagEventAttrs {
 }
 
 /**
- * Send a structured log to LaunchDarkly Observability, tagged with the flag.
+ * Send a structured log to LaunchDarkly Observability, associated with the flag.
  *
- * LaunchDarkly's flag-scoped views (flag > Monitoring > Logs) only list logs that
- * carry the `feature_flag.*` attributes, so every log we emit about the release
- * includes them. Plain console output is captured too, but without these tags it
- * only shows on the account-wide Logs page.
+ * LaunchDarkly ties telemetry to a flag the same way its own plugins do: a span
+ * that carries the `feature_flag.*` attributes (key, set id = environment,
+ * context, value) and contains the flag evaluation. So each log is written
+ * inside such a span, with the flag evaluated in it, which is what makes it
+ * show up under the flag's Monitoring > Logs view rather than only on the
+ * account-wide Logs page.
  */
 export function logFlagEvent(message: string, level: Level, { value, event, ...extra }: FlagEventAttrs): void {
-  LDObserve.recordLog(message, level, {
+  const attributes = {
     'feature_flag.key': FLAG_KEYS.INSIGHTS_DASHBOARD,
+    'feature_flag.set.id': clientSideId,
     'feature_flag.result.value': String(value),
     'feature_flag.provider.name': 'LaunchDarkly',
     'feature_flag.context.id': DEMO_CONTEXT_KEY,
     event,
     source_tier: 'browser',
     ...extra,
-  });
+  };
+  try {
+    LDObserve.startSpan(`incident.${event}`, (span) => {
+      span?.setAttributes(attributes);
+      // Evaluate inside the span so the plugin's evaluation event lands in this trace.
+      getLDClient().boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
+      LDObserve.recordLog(message, level, attributes);
+    });
+  } catch (err) {
+    console.warn('[LaunchDarkly] telemetry failed:', err);
+  }
 }

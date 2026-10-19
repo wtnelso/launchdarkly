@@ -63,9 +63,14 @@ export const ldClient: LDClient = init(sdkKey, {
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /**
- * Send a structured log to LaunchDarkly Observability, tagged with the flag so
- * it appears under the flag's Monitoring > Logs view (which only lists logs
- * carrying the feature_flag.* attributes). Also echoes to the console.
+ * Send a structured log to LaunchDarkly Observability, associated with the flag.
+ *
+ * LaunchDarkly ties telemetry to a flag through spans that carry the
+ * `feature_flag.*` attributes and contain the evaluation. The observability
+ * plugin's tracing hook adds the evaluation event to whichever span is active,
+ * so we open a span, evaluate the flag inside it, and write the log there.
+ * That is what makes the entry appear under the flag's Monitoring > Logs view.
+ * Also echoes to the console.
  */
 export function logFlagEvent(
   message: string,
@@ -77,7 +82,8 @@ export function logFlagEvent(
   if (level === 'error') console.error(line);
   else if (level === 'warn') console.warn(line);
   else console.log(line);
-  LDObserve.recordLog(message, level, undefined, undefined, {
+
+  const attributes: Record<string, string | number | boolean> = {
     'feature_flag.key': FLAG_KEYS.INSIGHTS_DASHBOARD,
     'feature_flag.result.value': String(value),
     'feature_flag.provider.name': 'LaunchDarkly',
@@ -85,7 +91,16 @@ export function logFlagEvent(
     event,
     source_tier: 'backend',
     ...extra,
-  });
+  };
+  // OPTIONAL: LD_ENVIRONMENT_ID (= the environment's client-side ID) lets the
+  // log carry feature_flag.set.id like the plugins' own evaluation events do.
+  if (process.env.LD_ENVIRONMENT_ID) attributes['feature_flag.set.id'] = process.env.LD_ENVIRONMENT_ID;
+
+  void LDObserve.runWithHeaders(`incident.${event}`, {}, async (span) => {
+    span.setAttributes(attributes);
+    await ldClient.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, serverContext, false);
+    LDObserve.recordLog(message, level, undefined, undefined, attributes);
+  }).catch((err: unknown) => console.warn('[LaunchDarkly] telemetry failed:', err));
 }
 
 /**
