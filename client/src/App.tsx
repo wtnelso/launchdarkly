@@ -3,7 +3,7 @@ import { FeatureGate } from './components/FeatureGate';
 import { FlagActivityLog } from './components/FlagActivityLog';
 import { ServerStatus } from './components/ServerStatus';
 import { FLAG_KEYS } from './ld/flags';
-import { demoContext, isLaunchDarklyConfigured } from './ld/provider';
+import { demoContext } from './ld/provider';
 
 export function App() {
   const init = useInitializationStatus();
@@ -20,13 +20,6 @@ export function App() {
         </div>
       </header>
 
-      {!isLaunchDarklyConfigured && (
-        <div className="banner warn">
-          <strong>VITE_LD_CLIENT_SIDE_ID is not set.</strong> Copy <code>client/.env.example</code> to{' '}
-          <code>client/.env</code>, paste your client-side ID, and restart <code>npm run dev</code>. Until then every
-          flag evaluates to its default (legacy panel).
-        </div>
-      )}
       {init.status === 'failed' && (
         <div className="banner warn">
           LaunchDarkly failed to initialize: {init.error?.message ?? 'unknown error'}. Check the client-side ID.

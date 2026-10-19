@@ -11,9 +11,10 @@ import { createLDReactProvider, type LDContext } from '@launchdarkly/react-sdk';
 
 // REPLACE ME: set VITE_LD_CLIENT_SIDE_ID in client/.env (see client/.env.example).
 // This is the *client-side ID*, not the SDK key. It is safe to ship to browsers.
-const clientSideId = import.meta.env.VITE_LD_CLIENT_SIDE_ID;
+export const clientSideId = import.meta.env.VITE_LD_CLIENT_SIDE_ID?.trim() ?? '';
 
-export const isLaunchDarklyConfigured = Boolean(clientSideId);
+/** True when a client-side ID is present. The SDK throws if given an empty one. */
+export const isLaunchDarklyConfigured = clientSideId.length > 0;
 
 /**
  * The context LaunchDarkly evaluates flags for.
@@ -28,10 +29,16 @@ export const demoContext: LDContext = {
   name: 'Demo User',
 };
 
-export const LDProvider = createLDReactProvider(clientSideId ?? 'missing-client-side-id', demoContext, {
-  ldOptions: {
-    // Streaming is on by default when a variation hook is used; set explicitly
-    // so it's obvious during the demo that real-time updates are intentional.
-    streaming: true,
-  },
-});
+/**
+ * Build the provider. Called once from main.tsx, and only when a client-side
+ * ID is configured (otherwise main.tsx renders a setup screen instead).
+ */
+export function createProvider() {
+  return createLDReactProvider(clientSideId, demoContext, {
+    ldOptions: {
+      // Streaming is on by default when a variation hook is used; set explicitly
+      // so it's obvious during the demo that real-time updates are intentional.
+      streaming: true,
+    },
+  });
+}

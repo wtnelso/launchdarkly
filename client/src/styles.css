@@ -94,3 +94,5 @@ p { margin: 6px 0; line-height: 1.45; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.on { background: var(--ok); }
 .dot.off { background: var(--muted); }
+
+.layout.single { grid-template-columns: 1fr; max-width: 760px; }
