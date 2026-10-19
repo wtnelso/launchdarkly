@@ -1,0 +1,23 @@
+{
+  "name": "abc-company-launchdarkly-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LaunchDarkly SE technical exercise - Part 1: Release and Remediate (React + Node/Express)",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client",
+    "remediate": "bash scripts/remediate.sh",
+    "remediate:api": "bash scripts/remediate-api.sh"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
