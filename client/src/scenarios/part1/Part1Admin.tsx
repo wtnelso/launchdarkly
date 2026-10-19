@@ -4,6 +4,7 @@ import { setChaos } from '../../api';
 import { FlagActivityLog } from '../../components/FlagActivityLog';
 import { ServerStatus } from '../../components/ServerStatus';
 import { FLAG_KEYS } from '../../ld/flags';
+import { logFlagEvent } from '../../ld/telemetry';
 
 /**
  * Part 1 admin tooling. Lives in the collapsible admin drawer so none of it
@@ -20,6 +21,7 @@ export function Part1Admin() {
     setBusy(true);
     try {
       setChaosState(await setChaos(true));
+      logFlagEvent('Bad report data injected (chaos mode on)', 'warn', { event: 'chaos_on', value: true });
     } finally {
       setBusy(false);
     }

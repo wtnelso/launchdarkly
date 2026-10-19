@@ -198,7 +198,8 @@ the logs are visible. **Never reload the browser** during the demo — that is t
    which fires the same trigger. Watch the flag turn Off by itself and the UI roll back — no human in
    the loop. Rolling back also retires the bad data, so the next release renders healthy.
    Without `LD_TRIGGER_URL` the crash card instead tells the operator how to remediate by hand.
-   Then open **Observability → Errors** in LaunchDarkly: the crash is there with a session replay.
+   Then open the flag's **Monitoring** tab in LaunchDarkly: **Errors** has the crash with a session
+   replay, and **Logs** shows the full timeline from both the browser and the API.
 
 5. **Audit.** Open the flag's **History** tab in LaunchDarkly: every change is attributed — your
    user for the manual toggles, and the trigger (with the `eventName` you sent) for the
@@ -219,12 +220,21 @@ process (always a singleton) and waits for initialization. `routes/reports.ts` e
 per request from the SDK's in-memory store (no network call). `routes/flagEvents.ts` registers
 `ldClient.on('update:insights-dashboard', …)`, re-evaluates, and broadcasts over SSE.
 
-**Observability.** `client/src/ld/provider.ts` adds the `@launchdarkly/observability` and
-`@launchdarkly/session-replay` plugins to the browser client. They reuse the client-side ID (no extra
-keys) and send errors, network calls, Web Vitals and a replay of each session to **Observability** in
-LaunchDarkly. The error boundary calls `LDObserve.recordError(...)` explicitly because an error
-caught by a boundary is not "uncaught" and would otherwise be missed. `privacySetting: 'default'`
-masks form inputs but keeps text readable; use `'strict'` with real customer data.
+**Observability.** Both tiers are instrumented.
+- Browser: `client/src/ld/provider.ts` adds the `@launchdarkly/observability` and
+  `@launchdarkly/session-replay` plugins. They reuse the client-side ID (no extra keys) and send
+  errors, network calls, Web Vitals and a replay of each session to **Observability** in LaunchDarkly.
+  The error boundary calls `LDObserve.recordError(...)` explicitly because an error caught by a
+  boundary is not "uncaught" and would otherwise be missed. `privacySetting: 'default'` masks form
+  inputs but keeps text readable; use `'strict'` with real customer data.
+- API: `server/src/ld.ts` adds `@launchdarkly/observability-node` to the Node SDK (it authenticates
+  with the SDK key), so server-side flag evaluations, logs and traces land in the same place.
+- **Flag-scoped logs.** The flag's **Monitoring → Logs** tab only lists logs tagged with the
+  `feature_flag.*` attributes (`feature_flag.key`, `feature_flag.result.value`, …). Both tiers go
+  through a small `logFlagEvent()` helper (`client/src/ld/telemetry.ts`, `server/src/ld.ts`) that
+  adds those tags, so the whole incident reads as one timeline there: flag changed → bad data
+  injected → crash → crash reported → trigger fired → chaos reset → flag changed. Untagged
+  `console.*` output still appears on the account-wide Observability → Logs page.
 
 **Remediation.** A flag trigger is an unguessable webhook URL bound to one action on one flag in
 one environment. Anything that can make an HTTP POST — curl, an APM alert, this app's
@@ -253,7 +263,8 @@ context with attributes.
 │       ├── App.tsx           top bar (part picker + Admin toggle), end-user view, admin drawer
 │       ├── scenarios/        one entry per exercise part: { View, Admin }
 │       │   └── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
-│       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming)
+│       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming, observability plugins)
+│       ├── ld/telemetry.ts   logFlagEvent(): flag-tagged logs for Monitoring > Logs
 │       ├── ld/flags.ts       flag keys
 │       ├── components/
 │       │   ├── AdminDrawer.tsx         collapsible overlay for admin tooling
@@ -267,7 +278,7 @@ context with attributes.
 ├── server/                   Express 5 + TypeScript
 │   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, API_PORT (+ REST fallback vars)
 │   └── src/
-│       ├── ld.ts             Node SDK singleton, waitForInitialization
+│       ├── ld.ts             Node SDK singleton + observability plugin, logFlagEvent()
 │       ├── demo.ts           demo-only chaos state (malformed Insights payload)
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
 │       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts
@@ -290,4 +301,5 @@ context with attributes.
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
 | Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
 | Nothing under Observability → Errors in LaunchDarkly | Events batch and can take a minute to appear. Reload the page once after setting the client-side ID; check the browser console for plugin errors. |
+| Flag → Monitoring → Logs is empty but Observability → Logs has data | The flag view only shows logs tagged with `feature_flag.key`. Use `logFlagEvent()` (both tiers) for anything you want attributed to the flag; widen the time range selector. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

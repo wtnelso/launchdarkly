@@ -25,9 +25,11 @@ export const isLaunchDarklyConfigured = clientSideId.length > 0;
  * this browser. Part 2 (targeting) will add attributes such as plan, region
  * and email so individual and rule-based targeting can be demonstrated.
  */
+export const DEMO_CONTEXT_KEY = 'demo-user-001';
+
 export const demoContext: LDContext = {
   kind: 'user',
-  key: 'demo-user-001',
+  key: DEMO_CONTEXT_KEY,
   name: 'Demo User',
 };
 

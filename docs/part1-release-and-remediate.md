@@ -35,7 +35,9 @@ Open the Admin drawer first so the audience can watch the logs.
    replay, the app reported it, and the trigger turned the feature off for everyone before a human
    picked up the pager." Then show `npm run remediate` as the manual equivalent an
    on-call engineer or a monitoring tool would use.
-5. Open the flag's **History**: "Every change is attributed and auditable."
+5. Open the flag's **Monitoring → Logs**: "Here is the whole incident as LaunchDarkly saw it, browser
+   and API side by side: release, bad data, crash, kill switch, rollback." Then **History**: "Every
+   change is attributed and auditable."
 
 ## Design decisions worth calling out
 
@@ -64,5 +66,6 @@ _Add screenshots here before submitting:_
 - [ ] Flag on — Insights dashboard, logs showing `true`, server listener "new"
 - [ ] Crash card after "Inject bad report data"
 - [ ] LaunchDarkly Observability → Errors showing the recorded error and its session replay
+- [ ] Flag → Monitoring → Logs showing the incident timeline from both tiers
 - [ ] Terminal output of `npm run remediate` (HTTP 200)
 - [ ] LaunchDarkly flag History tab showing the trigger entry

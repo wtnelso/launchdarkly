@@ -7,6 +7,8 @@
  *
  * IMPORTANT: create exactly ONE LDClient per process. Never create one per request.
  */
+// The observability plugin must be imported before anything it instruments.
+import { LDObserve, Observability } from '@launchdarkly/observability-node';
 import { init, type LDClient, type LDContext } from '@launchdarkly/node-server-sdk';
 
 // REPLACE ME: the SDK key is read from server/.env (see server/.env.example).
@@ -40,9 +42,11 @@ export const FLAG_KEYS = {
  * "service" context is enough. Part 2 (targeting) replaces this with the
  * real end-user's context so individual and rule-based targeting work.
  */
+const SERVER_CONTEXT_KEY = 'abc-analytics-api';
+
 export const serverContext: LDContext = {
   kind: 'user',
-  key: 'abc-analytics-api',
+  key: SERVER_CONTEXT_KEY,
   name: 'ABC Analytics API (server)',
 };
 
@@ -50,7 +54,39 @@ export const ldClient: LDClient = init(sdkKey, {
   // Streaming is the default and is what makes server-side "listeners" instant.
   // Shown here explicitly so it is obvious during the demo.
   stream: true,
+  // LaunchDarkly Observability for the API: flag evaluations, logs, errors and
+  // traces from this process show up in LaunchDarkly next to the browser's.
+  // It authenticates with the SDK key above - no extra credentials.
+  plugins: [new Observability({ serviceName: 'abc-analytics-api', serviceVersion: '1.0.0' })],
 });
+
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * Send a structured log to LaunchDarkly Observability, tagged with the flag so
+ * it appears under the flag's Monitoring > Logs view (which only lists logs
+ * carrying the feature_flag.* attributes). Also echoes to the console.
+ */
+export function logFlagEvent(
+  message: string,
+  level: LogLevel,
+  attrs: { value: boolean; event: string; [extra: string]: string | number | boolean },
+): void {
+  const { value, event, ...extra } = attrs;
+  const line = `[LaunchDarkly][${event}] ${message}`;
+  if (level === 'error') console.error(line);
+  else if (level === 'warn') console.warn(line);
+  else console.log(line);
+  LDObserve.recordLog(message, level, undefined, undefined, {
+    'feature_flag.key': FLAG_KEYS.INSIGHTS_DASHBOARD,
+    'feature_flag.result.value': String(value),
+    'feature_flag.provider.name': 'LaunchDarkly',
+    'feature_flag.context.id': SERVER_CONTEXT_KEY,
+    event,
+    source_tier: 'backend',
+    ...extra,
+  });
+}
 
 /**
  * Wait for the SDK to download its initial flag set. Until this resolves,

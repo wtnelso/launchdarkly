@@ -2,6 +2,7 @@ import { LDObserve } from '@launchdarkly/observability';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { reportError, type ReportErrorResponse } from '../api';
 import { FLAG_KEYS } from '../ld/flags';
+import { logFlagEvent } from '../ld/telemetry';
 
 interface Props {
   children: ReactNode;
@@ -57,12 +58,26 @@ export class PanelErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[InsightsDashboard] crashed:', error, info.componentStack);
+    logFlagEvent(`Insights dashboard crashed: ${error.message}`, 'error', {
+      event: 'crash',
+      value: true,
+      component: 'InsightsDashboard',
+    });
     LDObserve.recordError(error, 'Insights dashboard failed to render', {
       component: 'InsightsDashboard',
       flag: FLAG_KEYS.INSIGHTS_DASHBOARD,
     });
     void reportOnce(error.message).then(
-      (report) => this.setState({ report }),
+      (report) => {
+        this.setState({ report });
+        logFlagEvent(
+          report.remediated
+            ? `Kill switch fired: flag trigger answered HTTP ${report.triggerStatus}`
+            : `Crash reported, no automatic kill switch: ${report.reason ?? 'unknown'}`,
+          'warn',
+          { event: report.remediated ? 'kill_switch' : 'kill_switch_unavailable', value: true },
+        );
+      },
       () => this.setState({ report: { remediated: false, reason: 'Could not reach the API' } }),
     );
   }

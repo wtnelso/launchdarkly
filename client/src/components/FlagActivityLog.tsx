@@ -1,6 +1,7 @@
 import { useBoolVariation, useLDClient } from '@launchdarkly/react-sdk';
 import { useEffect, useState } from 'react';
 import { FLAG_KEYS } from '../ld/flags';
+import { logFlagEvent } from '../ld/telemetry';
 
 interface Entry {
   at: string;
@@ -36,10 +37,19 @@ export function FlagActivityLog() {
       lastValue = value;
       const entry: Entry = { at: new Date().toISOString(), value, source: 'stream' };
       setEntries((prev) => [entry, ...prev].slice(0, 20));
+      // Also tell LaunchDarkly Observability (shows under the flag's Monitoring > Logs).
+      logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} changed to ${value} in the browser`, 'info', {
+        event: 'flag_change',
+        value,
+      });
     };
 
     client.on(eventName, onChange);
     setEntries([{ at: new Date().toISOString(), value: lastValue, source: 'initial' }]);
+    logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} evaluated as ${lastValue} on page load`, 'info', {
+      event: 'flag_initial',
+      value: lastValue,
+    });
 
     // Always unsubscribe on unmount to avoid leaks.
     return () => client.off(eventName, onChange);

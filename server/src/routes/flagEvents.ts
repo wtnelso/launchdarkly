@@ -9,7 +9,7 @@
  */
 import { Router, type Response } from 'express';
 import { demoState } from '../demo.js';
-import { FLAG_KEYS, isNewReportingOn, ldClient } from '../ld.js';
+import { FLAG_KEYS, isNewReportingOn, ldClient, logFlagEvent } from '../ld.js';
 
 interface FlagEvent {
   key: string;
@@ -22,6 +22,8 @@ interface FlagEvent {
 }
 
 const subscribers = new Set<Response>();
+/** Last value we saw, so we only log real changes (the SDK also emits an update on initial load). */
+let lastValue: boolean | undefined;
 
 function send(res: Response, event: FlagEvent): void {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
@@ -34,8 +36,15 @@ async function broadcast(reason: FlagEvent['reason']): Promise<void> {
   // the next release renders healthy.
   if (!value && demoState.chaos) {
     demoState.chaos = false;
-    console.log('[Demo] chaos mode reset - the bad release was rolled back');
+    logFlagEvent('Chaos mode reset: the bad release was rolled back', 'info', { event: 'chaos_reset', value });
   }
+  if (reason === 'update' && lastValue !== undefined && value !== lastValue) {
+    logFlagEvent(`${FLAG_KEYS.INSIGHTS_DASHBOARD} changed to ${value} on the server`, 'info', {
+      event: 'flag_change',
+      value,
+    });
+  }
+  lastValue = value;
 
   const event: FlagEvent = {
     key: FLAG_KEYS.INSIGHTS_DASHBOARD,
