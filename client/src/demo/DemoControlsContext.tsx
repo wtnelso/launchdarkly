@@ -6,7 +6,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
  * panel throw during render).
  */
 interface DemoControls {
-  /** When true, NewPricingPanel throws on its next render. */
+  /** When true, the new pricing variant throws on its next render. */
   crashNewPanel: boolean;
   setCrashNewPanel: (value: boolean) => void;
 }

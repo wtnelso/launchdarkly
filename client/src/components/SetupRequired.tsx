@@ -16,7 +16,6 @@ export function SetupRequired() {
         <section className="panel">
           <div className="panel-head">
             <h2>One more step: connect LaunchDarkly</h2>
-            <span className="tag muted">Setup</span>
           </div>
           <p>
             <code>VITE_LD_CLIENT_SIDE_ID</code> is not set, so the app can't start the LaunchDarkly client.

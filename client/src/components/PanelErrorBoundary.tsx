@@ -53,7 +53,7 @@ export class PanelErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[NewPricingPanel] crashed:', error, info.componentStack);
+    console.error('[PricingPanel:new] crashed:', error, info.componentStack);
     this.props.onCrash?.();
     void reportOnce(error.message).then(
       (report) => this.setState({ report }),

@@ -5,7 +5,7 @@ adding risk** by wrapping new code in a LaunchDarkly feature flag:
 
 | Expectation | How this app demonstrates it |
 | --- | --- |
-| **Feature flag** around a new feature | The redesigned pricing panel is gated by the boolean flag `new-pricing-panel`. Flag **on** = released, **off** = rolled back to the legacy panel. |
+| **Feature flag** around a new feature | The new pricing lineup is gated by the boolean flag `new-pricing-panel`. Flag **off** = today's two plans; flag **on** = three plans with annual billing and a recommended tier. |
 | **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:new-pricing-panel')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:new-pricing-panel')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
 | **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The UI also has a "Simulate production bug" button; when the new panel crashes, the server can fire the same trigger automatically (an automatic kill switch). |
 
@@ -139,7 +139,7 @@ npm run dev
 ```
 
 Open <http://localhost:5173>. You'll see the customer-facing billing page: because the flag is off
-it shows the plain **Plans & Pricing** table (the legacy panel). The top-right corner has two
+it shows today's two pricing plans (Basic and Business). The top-right corner has two
 controls that customers would never see:
 
 - **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts. Each part has
@@ -168,10 +168,11 @@ Put the LaunchDarkly flag page and the dashboard side by side, with the **Admin*
 the logs are visible. **Never reload the browser** during the demo — that is the point.
 
 1. **Release.** In LaunchDarkly flip `new-pricing-panel` **On** and **Review and save**.
-   Within about a second the dashboard swaps to the redesigned three-tier panel. In the Admin
+   Within about a second the page gains a third plan, a Monthly/Annual billing toggle, and a
+   highlighted "Most popular" tier. In the Admin
    drawer, *Client listener* logs `Flag changed → true` and *Server listener* logs the same from the
-   Node API. The panel's footer shows `server variant "new"`: the API is serving new pricing too.
-2. **Rollback.** Flip the flag **Off**. The legacy table is back instantly, both logs record
+   Node API. The drawer's *Server listener* card shows the API is serving new pricing too.
+2. **Rollback.** Flip the flag **Off**. The two-plan lineup is back instantly, both logs record
    `→ false`. That is your zero-downtime rollback: no deploy, no restart, no reload.
 3. **Remediate (manual, via flag trigger).** Flip the flag **On** again. Now imagine an alert
    fires. In a terminal run:
@@ -181,7 +182,7 @@ the logs are visible. **Never reload the browser** during the demo — that is t
    ```
 
    You'll see `HTTP 200`, the flag turns **Off** in LaunchDarkly on its own, and the dashboard
-   rolls back to the legacy panel — again with no reload. Equivalent raw `curl`:
+   rolls back to the two-plan lineup — again with no reload. Equivalent raw `curl`:
 
    ```bash
    curl -X POST "$LD_TRIGGER_URL" -H 'Content-Type: application/json' \
@@ -204,7 +205,7 @@ the logs are visible. **Never reload the browser** during the demo — that is t
 `useBoolVariation('new-pricing-panel', false)`. The hook returns the value for the current context
 *and* subscribes the component to changes; the SDK keeps a streaming connection to LaunchDarkly,
 so a toggle produces a re-render with no polling and no reload. The default `false` means the app
-fails closed to the legacy panel if LaunchDarkly is unreachable.
+fails closed to today's pricing if LaunchDarkly is unreachable.
 `FlagActivityLog.tsx` registers the lower-level `client.on('change:new-pricing-panel', …)` event
 explicitly so you can see the mechanism the hook is built on.
 
@@ -238,9 +239,8 @@ context with attributes.
 │       ├── ld/flags.ts       flag keys
 │       ├── components/
 │       │   ├── AdminDrawer.tsx         collapsible overlay for admin tooling
-│       │   ├── FeatureGate.tsx         useBoolVariation → New or Legacy panel
-│       │   ├── NewPricingPanel.tsx     the flagged feature
-│       │   ├── LegacyPricingPanel.tsx  the rollback target
+│       │   ├── FeatureGate.tsx         useBoolVariation → PricingPanel variant
+│       │   ├── PricingPanel.tsx        one layout, two variants: legacy (2 plans) / new (3 plans)
 │       │   ├── PanelErrorBoundary.tsx  catches the crash, calls /api/report-error
 │       │   ├── FlagActivityLog.tsx     explicit client.on('change:…') listener
 │       │   └── ServerStatus.tsx        SSE view of the server-side listener
@@ -265,7 +265,7 @@ context with attributes.
 | Header shows `LaunchDarkly: failed` | Wrong client-side ID, or you pasted the SDK key by mistake. The client-side ID has no `sdk-` prefix. |
 | Flag toggles do nothing in the browser, but the server log shows the change | The flag is not available to client-side SDKs. Open the flag → right sidebar → **Advanced controls** → enable **SDKs using Client-side ID**. |
 | Server exits with `LD_SDK_KEY is not set` | Create `server/.env` from the example and paste the `sdk-…` key. |
-| Server log: `Server SDK failed to initialize` | Wrong SDK key, or no network. Flags fall back to defaults (legacy panel). |
+| Server log: `Server SDK failed to initialize` | Wrong SDK key, or no network. Flags fall back to defaults (two-plan pricing). |
 | `npm run remediate` → `LD_TRIGGER_URL is not set` | Create the trigger (setup step 4) or use `npm run remediate:api`. |
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
 | Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |

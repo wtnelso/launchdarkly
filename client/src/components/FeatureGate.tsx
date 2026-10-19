@@ -1,9 +1,8 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
 import { useDemoControls } from '../demo/DemoControlsContext';
 import { FLAG_KEYS } from '../ld/flags';
-import { LegacyPricingPanel } from './LegacyPricingPanel';
-import { NewPricingPanel } from './NewPricingPanel';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
+import { PricingPanel } from './PricingPanel';
 
 /**
  * The feature flag in action.
@@ -15,7 +14,7 @@ import { PanelErrorBoundary } from './PanelErrorBoundary';
  * that is the "instant release / rollback" with no page reload.
  *
  * The second argument is the fallback used if LaunchDarkly is unreachable or
- * the flag doesn't exist: we fail closed to the legacy panel.
+ * the flag doesn't exist: we fail closed to the legacy pricing.
  */
 export function FeatureGate() {
   const newPanelEnabled = useBoolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
@@ -24,10 +23,10 @@ export function FeatureGate() {
   if (newPanelEnabled) {
     return (
       <PanelErrorBoundary onCrash={() => setCrashNewPanel(false)}>
-        <NewPricingPanel />
+        <PricingPanel variant="new" />
       </PanelErrorBoundary>
     );
   }
 
-  return <LegacyPricingPanel />;
+  return <PricingPanel variant="legacy" />;
 }
