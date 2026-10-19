@@ -8,6 +8,7 @@
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
  *   POST /api/report-error  - optional automatic kill switch via flag trigger
  *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
+ *   POST /api/demo/simulate-traffic - Part 3: bulk synthetic experiment traffic (exposures + conversions)
  *   POST /api/landing/evaluate - Part 2: evaluate landing-hero-v-2 for a visitor context
  */
 import 'dotenv/config';

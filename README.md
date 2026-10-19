@@ -9,8 +9,10 @@ adding risk** by wrapping new code in a LaunchDarkly feature flag:
 | **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:insights-dashboard')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:insights-dashboard')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
 | **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer can also **inject bad report data**: the API starts returning a malformed payload, the new dashboard crashes on it, the error is recorded in **LaunchDarkly Observability** (with session replay), and the API fires the same trigger automatically (an automatic kill switch). |
 
-This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise. Code paths
-that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments.
+This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise; [Part 2
+(Target)](#part-2-target) and the [Experimentation extra credit](#extra-credit-experimentation)
+build on it. Code paths that depend on *your* LaunchDarkly account are marked with `REPLACE ME`
+comments.
 
 ---
 
@@ -22,9 +24,10 @@ that depend on *your* LaunchDarkly account are marked with `REPLACE ME` comments
 4. [Run the app](#run-the-app)
 5. [Demo script: release → rollback → remediate](#demo-script-release--rollback--remediate)
 6. [Part 2: Target](#part-2-target)
-7. [How it works](#how-it-works)
-8. [Project layout](#project-layout)
-9. [Troubleshooting](#troubleshooting)
+7. [Extra credit: Experimentation](#extra-credit-experimentation)
+8. [How it works](#how-it-works)
+9. [Project layout](#project-layout)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -144,8 +147,9 @@ Open <http://localhost:5173>. You'll see the customer-facing analytics page: bec
 it shows today's **Usage report**, a plain monthly table with an Export CSV button. The top-right corner has two
 controls that customers would never see:
 
-- **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts. Each part has
-  its own end-user view and admin panel; the choice is kept in the URL hash (`#part-1`).
+- **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts (Part 1, Part 2,
+  and the Part 3 extra credit). Each part has its own end-user view and admin panel; the choice is
+  kept in the URL hash (`#part-1`).
 - **Admin** button - opens a drawer that slides over the right edge (it never reflows the customer
   view). It holds the LaunchDarkly connection status, release instructions, demo controls, and the
   client- and server-side flag change logs. Press <kbd>Esc</kbd> to close it; it remembers whether
@@ -164,6 +168,7 @@ Other commands:
 | `npm run remediate` | Fires the flag trigger (turns the flag off) |
 | `npm run remediate:api` | Same, via the REST API (fallback) |
 | `npm run setup:part2` | Configures Part 2 targeting on `landing-hero-v-2` via the REST API |
+| `curl -X POST localhost:3001/api/demo/simulate-traffic -H 'Content-Type: application/json' -d '{"visitors":500}'` | Part 3: bulk experiment traffic from the Node SDK (also a button in the Admin drawer) |
 
 ## Demo script: release → rollback → remediate
 
@@ -265,6 +270,97 @@ evaluates the identical context via `POST /api/landing/evaluate`.
 5. Edit a rule in LaunchDarkly (e.g. switch Rule 1 to serve false) and save: Bruno flips back to the
    classic hero instantly; Alice and Carla are untouched.
 
+## Extra credit: Experimentation
+
+Select **Part 3 · Experiment** in the picker. The end-user view is the Part 2 landing page,
+unchanged, and the flag is the same **`landing-hero-v-2`**. What's new: the flag's **default rule**
+now runs an **A/B experiment**. Every visitor who isn't served by an individual target or a rule is
+split 50/50 between the classic hero and hero v2, and LaunchDarkly measures which one gets more
+clicks on the hero's primary button.
+
+### The metric (in code)
+
+Clicking either hero's primary call to action calls `client.track()` twice
+(`client/src/ld/metrics.ts`, wired in `Part2View.tsx`):
+
+| Event key | Metric type | What it measures |
+| --- | --- | --- |
+| `hero-cta-click` | **Conversion** (binary) | Did this visitor click the hero's primary button? Higher is better. **This is the experiment's primary metric.** |
+| `hero-cta-time-to-click` | **Numeric** (average), optional | Milliseconds from the hero rendering to the click, passed as `track()`'s `metricValue`. Lower is better. |
+
+The *exposure* is the flag evaluation that rendered the hero (`useBoolVariation` in `HeroGate`);
+the SDK reports it to LaunchDarkly, which attributes each conversion to the variation that visitor
+saw. The app never needs to know which variation is control. `REPLACE ME` in `metrics.ts` and
+`server/src/ld.ts` if you choose different event keys.
+
+### LaunchDarkly setup (one time)
+
+Experimentation is included in trials and Enterprise plans. Labels below are from the current UI;
+yours may differ slightly.
+
+1. **Create the metric.** Left nav **Metrics** → **Create metric**.
+   - **Event kind:** *Custom*. **Event key:** `hero-cta-click` (must match the code exactly).
+   - **Name:** `Hero CTA click`. **Description:** `Visitor clicked the landing-page hero's primary button.`
+   - **What do you want to measure?** *Conversion*, **binary** (whether the context converted).
+   - **Randomization unit:** *user* (the context kind the experiment buckets on; each persona and
+     synthetic visitor has a `user` key). **Success criteria:** *Higher is better*.
+   - **Create metric**.
+2. *(Optional)* A second metric: event key `hero-cta-time-to-click`, **Numeric**, **Average**,
+   unit `ms`, *Lower is better*. Name it `Hero CTA time to click`.
+3. **Create the experiment.** Open the `landing-hero-v-2` flag → **Experimentation** tab →
+   **Create experiment** (or left nav **Experiments** → **Create experiment** and pick the flag).
+   - **Name:** `Landing hero v2 vs classic`. **Hypothesis:** `A personalized hero gets more
+     primary-CTA clicks than the classic one.` **Type:** *Feature experiment*.
+   - **Randomization unit:** *user*. **Metrics:** primary `Hero CTA click` (add `Hero CTA time to
+     click` as a secondary metric if you created it).
+   - **Flag:** `landing-hero-v-2`. **Audience / targeting rule:** the **default rule** (the
+     individual targets and the two Part 2 rules stay above it and are *not* part of the
+     experiment). **Control:** `false` (classic hero).
+   - **Variations served:** **50% / 50%**. Leave the attribution window at its default.
+   - **Save** and then **Start experiment** (*Start iteration*). The flag's Targeting tab now shows
+     the default rule as an experiment rollout.
+4. **Nothing else to configure in the app.** Both SDKs already send the events; the Node SDK uses
+   the SDK key and the React SDK the client-side ID.
+
+### Demo script
+
+1. In the app pick **Part 3 · Experiment**, open the **Admin** drawer. The *Experiment* card
+   explains who is in the experiment; the *Your own clicks* card shows that the current visitor
+   (Anonymous by default) is served by the default rule, i.e. **in the experiment**. Switch to Alice
+   in the dropdown and it says *not in experiment*: individual targets and rules win over the
+   experiment's rollout.
+2. Back as the Anonymous visitor, click the hero's primary button on the page (**Start free trial**
+   or the v2 CTA, depending on which variation LaunchDarkly bucketed you into). The button
+   acknowledges the click and the card logs `hero-cta-click · anon-visitor · classic · 12.3s`. In
+   the browser's network tab, the next `POST https://events.launchdarkly.com/events/bulk/…`
+   contains a `custom` event with key `hero-cta-click`.
+3. **Simulate traffic.** Leave the defaults (200 visitors; classic converts 20%, hero v2 32%) and
+   click **Simulate 200 visitors**. For each synthetic visitor the browser SDK calls `identify()`
+   with a fresh multi-context (random user key and attributes, no beta testers, no enterprise plans,
+   so all of them reach the default rule), reads the variation, and converts with the configured
+   probability. Watch the hero flicker between variations on the page, the progress bar, and the
+   per-variation table of exposures and conversions. A run takes ~40 s (one round trip per
+   `identify()`); **Stop** ends it early. The events are flushed and your persona is restored.
+4. **Bulk: 500 via API** does the same from the Node SDK (`POST /api/demo/simulate-traffic`):
+   the server evaluates the flag locally for each visitor and `track()`s the conversions, so 500
+   visitors take well under a second. Use it when you want significance quickly. Both runs also
+   write a summary line to the flag's **Monitoring → Logs**.
+5. **Read the results** in LaunchDarkly: flag → **Experimentation** → the experiment → **Results**.
+   Data lands within a few minutes. For each variation you get **exposures**, **conversions** and
+   the **conversion rate**; LaunchDarkly's Bayesian analysis adds the **probability to beat
+   control** and a **credible interval** for the relative difference. With ~250 exposures per
+   variation at 20% vs 32%, hero v2 shows a >95% probability to beat control. The *Hero CTA time to
+   click* metric (if added) reports the mean per variation; lower wins.
+6. **Ship the winner.** Stop the experiment and set the default rule to serve `true`: every visitor
+   gets hero v2 instantly. Or, if v2 had lost, serve `false` and nobody outside the experiment ever
+   saw it.
+
+> **No experiment data yet?** Until the experiment is *started*, LaunchDarkly only asks the SDKs
+> for summarized evaluation counts, so simulated traffic appears as flag traffic but not as
+> experiment exposures. Start the experiment first, then simulate. Results also need the
+> `hero-cta-click` events to arrive *after* the exposure for the same user key, which both
+> simulators guarantee by evaluating before tracking.
+
 ## How it works
 
 **Flag evaluation and the listener (client).** `client/src/components/FeatureGate.tsx` calls
@@ -327,9 +423,11 @@ context with attributes.
 │       ├── App.tsx           top bar (part picker + Admin toggle), end-user view, admin drawer
 │       ├── scenarios/        one entry per exercise part: { View, Admin }
 │       │   ├── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
-│       │   └── part2/        Part2View (landing page, HeroGate), Part2Admin (personas, evaluation), personas.ts, personaStore.ts
+│       │   ├── part2/        Part2View (landing page, HeroGate + CTA tracking), Part2Admin (personas, evaluation), personas.ts, personaStore.ts
+│       │   └── part3/        Part3Admin (experiment panel), simulateTraffic.ts (identify → evaluate → track loop), syntheticVisitors.ts
 │       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming, observability plugins)
 │       ├── ld/telemetry.ts   logFlagEvent(): flag-tagged logs for Monitoring > Logs
+│       ├── ld/metrics.ts     METRIC_EVENTS + trackHeroCtaClick(): client.track() for the experiment metrics
 │       ├── ld/flags.ts       flag keys
 │       ├── components/
 │       │   ├── AdminDrawer.tsx         collapsible overlay for admin tooling
@@ -343,15 +441,16 @@ context with attributes.
 ├── server/                   Express 5 + TypeScript
 │   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, API_PORT (+ REST fallback vars)
 │   └── src/
-│       ├── ld.ts             Node SDK singleton + observability plugin, logFlagEvent()
+│       ├── ld.ts             Node SDK singleton + observability plugin, logFlagEvent(), METRIC_EVENTS
 │       ├── demo.ts           demo-only chaos state (malformed Insights payload)
+│       ├── synthetic.ts      random visitors for the bulk traffic simulation
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
-│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts, landing.ts (Part 2 evaluate)
+│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts (chaos + simulate-traffic), landing.ts (Part 2 evaluate)
 ├── scripts/
 │   ├── remediate.sh          curl → flag trigger
 │   ├── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)
 │   └── setup-part2-targeting.sh   REST API semantic patch: targets + rules for Part 2
-└── docs/                     part1-release-and-remediate.md, part2-targeting.md (reviewer walkthroughs)
+└── docs/                     part1-…, part2-targeting.md, part3-experimentation.md (reviewer walkthroughs)
 ```
 
 ## Troubleshooting
@@ -371,4 +470,7 @@ context with attributes.
 | Rule builder doesn't offer `plan` / `betaTester` | LaunchDarkly lists attributes it has seen from SDKs. Open Part 2 and click through the personas, then reload the flag page. You can also type the attribute name manually. |
 | Evaluation card says `Error: FLAG_NOT_FOUND` or `CLIENT_NOT_READY` | The `landing-hero-v-2` flag doesn't exist yet, isn't client-side available, or the SDK is still initializing. |
 | Alice sees v2 but the reason is a rule, not Individual target | Individual targets win over rules. If the reason is `RULE_MATCH`, the individual target wasn't saved. |
+| Experiment Results stay empty after simulating | The experiment wasn't started yet when the traffic ran (only summary events are sent until then), or the metric's event key doesn't match `hero-cta-click` in `client/src/ld/metrics.ts`. Start the experiment, run the simulation again, wait a few minutes. |
+| Experiment shows exposures but no conversions | The metric was created with a different event key or the wrong randomization unit (it must be `user`). Check Metrics → the metric → event key, then the **Your own clicks** log and the `events/bulk` request payload. |
+| Simulation is slow or logs identify errors | Each browser visitor is one `identify()` round trip (~200 ms). Use **Bulk via API** for volume; identify errors usually mean the network dropped - the run continues. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

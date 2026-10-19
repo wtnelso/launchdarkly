@@ -1,6 +1,7 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { FLAG_KEYS } from '../../ld/flags';
+import { trackHeroCtaClick } from '../../ld/metrics';
 import { applyPersonaContext, usePersona } from './personaStore';
 import type { Persona } from './personas';
 
@@ -73,7 +74,30 @@ function HeroGate() {
   return v2 ? <HeroPersonalized persona={persona} /> : <HeroClassic />;
 }
 
+/**
+ * The primary call to action is the experiment's conversion. Clicking it sends
+ * the `hero-cta-click` metric event (plus time-to-click) for the current
+ * context; LaunchDarkly attributes it to the variation this visitor saw.
+ * The button acknowledges the click briefly so the page still feels real.
+ */
+function useHeroCta(hero: 'v2' | 'classic', label: string) {
+  const shownAt = useRef(performance.now());
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    shownAt.current = performance.now();
+    setDone(false);
+  }, [hero, label]);
+  const onClick = () => {
+    if (done) return;
+    trackHeroCtaClick(hero, label, Math.round(performance.now() - shownAt.current));
+    setDone(true);
+    window.setTimeout(() => setDone(false), 2500);
+  };
+  return { done, onClick };
+}
+
 function HeroClassic() {
+  const cta = useHeroCta('classic', 'Start free trial');
   return (
     <section className="hero">
       <div className="hero-text">
@@ -84,7 +108,9 @@ function HeroClassic() {
           data team required.
         </p>
         <div className="hero-cta">
-          <button className="btn btn-primary">Start free trial</button>
+          <button className={`btn btn-primary ${cta.done ? 'done' : ''}`} onClick={cta.onClick} aria-live="polite">
+            {cta.done ? '✓ Trial requested' : 'Start free trial'}
+          </button>
           <button className="btn btn-outline">Watch a 2-min demo</button>
         </div>
       </div>
@@ -122,6 +148,8 @@ function HeroPersonalized({ persona }: { persona: Persona }) {
     },
   }[plan];
 
+  const cta = useHeroCta('v2', copy.cta);
+
   const locale =
     persona.user.country === 'DE'
       ? 'Data residency in the EU (Frankfurt) available.'
@@ -142,7 +170,9 @@ function HeroPersonalized({ persona }: { persona: Persona }) {
           {locale ? ` ${locale}` : ''}
         </p>
         <div className="hero-cta">
-          <button className="btn btn-primary">{copy.cta}</button>
+          <button className={`btn btn-primary ${cta.done ? 'done' : ''}`} onClick={cta.onClick} aria-live="polite">
+            {cta.done ? '✓ Request sent' : copy.cta}
+          </button>
           <button className="btn btn-outline">{copy.secondary}</button>
         </div>
       </div>

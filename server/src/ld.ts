@@ -44,6 +44,18 @@ export const FLAG_KEYS = {
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];
 
 /**
+ * Metric event keys for Experimentation (extra credit). Keep in sync with
+ * client/src/ld/metrics.ts. REPLACE ME if you used different event keys when
+ * creating the metrics in LaunchDarkly.
+ */
+export const METRIC_EVENTS = {
+  /** Conversion (binary): the visitor clicked the hero's primary call to action. */
+  HERO_CTA_CLICK: 'hero-cta-click',
+  /** Numeric: milliseconds from hero render to click. Lower is better. */
+  HERO_CTA_TIME_TO_CLICK: 'hero-cta-time-to-click',
+} as const;
+
+/**
  * The context the server evaluates flags against.
  *
  * In Part 1 the flag is a simple on/off release switch, so one shared

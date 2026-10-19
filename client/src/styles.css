@@ -171,3 +171,18 @@ p { margin: 6px 0; line-height: 1.45; }
 .reasons div { display: grid; grid-template-columns: 130px 1fr; gap: 8px; font-size: 0.9rem; }
 .reasons dt { color: var(--muted); }
 .reasons dd { margin: 0; }
+
+/* Part 3: experiment admin */
+.btn-primary.done { background: var(--ok); border-color: var(--ok); }
+.field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.field input, .field select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 0.9rem; width: 100%; }
+.field input:focus, .field select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sim-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sim-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.progress { height: 8px; background: var(--surface-2); border-radius: 999px; overflow: hidden; margin-top: 12px; }
+.progress span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width 120ms linear; }
+.stats { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.85rem; }
+.stats caption { text-align: left; padding: 4px 0; }
+.stats th, .stats td { text-align: left; padding: 6px 4px; border-top: 1px solid var(--border); }
+.stats th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-top: 0; }
+.stats .num { text-align: right; font-variant-numeric: tabular-nums; }

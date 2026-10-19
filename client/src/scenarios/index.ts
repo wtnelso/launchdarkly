@@ -3,12 +3,13 @@ import { Part1Admin } from './part1/Part1Admin';
 import { Part1View } from './part1/Part1View';
 import { Part2Admin } from './part2/Part2Admin';
 import { Part2View } from './part2/Part2View';
+import { Part3Admin } from './part3/Part3Admin';
 
 /**
  * Each part of the exercise is a "scenario": an end-user view (what ABC
  * Company's customers see) and an admin panel (flag logs and demo controls,
  * shown in the collapsible drawer). The picker in the top bar switches
- * between them. Add Part 2 / extra credit here as they are built.
+ * between them.
  */
 export interface Scenario {
   id: string;
@@ -22,6 +23,8 @@ export interface Scenario {
 export const SCENARIOS: Scenario[] = [
   { id: 'part-1', label: 'Part 1 · Release & Remediate', View: Part1View, Admin: Part1Admin },
   { id: 'part-2', label: 'Part 2 · Target', View: Part2View, Admin: Part2Admin },
+  // Extra credit: same landing page and flag; the admin panel drives an experiment.
+  { id: 'part-3', label: 'Part 3 · Experiment', View: Part2View, Admin: Part3Admin },
 ];
 
 function fromHash(): Scenario {
