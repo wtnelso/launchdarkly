@@ -43,7 +43,7 @@ remediateRouter.post('/report-error', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        eventName: `Automatic kill switch: ${message ?? 'error in Insights dashboard'}`,
+        eventName: `Automatic kill switch: Insights dashboard crashed (${message ?? 'unknown error'})`,
         url: 'http://localhost:5173',
       }),
     });

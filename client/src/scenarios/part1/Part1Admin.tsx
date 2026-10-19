@@ -1,7 +1,8 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
+import { useState } from 'react';
+import { setChaos } from '../../api';
 import { FlagActivityLog } from '../../components/FlagActivityLog';
 import { ServerStatus } from '../../components/ServerStatus';
-import { useDemoControls } from '../../demo/DemoControlsContext';
 import { FLAG_KEYS } from '../../ld/flags';
 
 /**
@@ -10,7 +11,19 @@ import { FLAG_KEYS } from '../../ld/flags';
  */
 export function Part1Admin() {
   const flagOn = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
-  const { crashNewFeature, setCrashNewFeature } = useDemoControls();
+  // Mirrors the API's chaos state; kept current by the server-sent events the
+  // <ServerStatus> card already subscribes to.
+  const [chaos, setChaosState] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const injectBadData = async () => {
+    setBusy(true);
+    try {
+      setChaosState(await setChaos(true));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <>
@@ -28,7 +41,8 @@ export function Part1Admin() {
             <strong>Rollback:</strong> turn it <em>off</em>
           </li>
           <li>
-            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code>, or use the demo control below
+            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code>, or inject a bug below and let
+            the kill switch do it
           </li>
         </ol>
       </div>
@@ -36,25 +50,23 @@ export function Part1Admin() {
       <div className="card">
         <div className="card-head">
           <h3>Demo controls</h3>
-          <span className={`pill ${flagOn ? 'on' : 'off'}`}>{flagOn ? 'Released' : 'Rolled back'}</span>
+          <span className={`pill ${chaos ? 'warn' : flagOn ? 'on' : 'off'}`}>
+            {chaos ? 'Bad data live' : flagOn ? 'Released' : 'Rolled back'}
+          </span>
         </div>
         <p className="small muted">
-          Pretend a regression shipped inside the Insights dashboard. The error boundary reports it to the API, which
-          fires the flag trigger (if <code>LD_TRIGGER_URL</code> is set).
+          Simulate a bad upstream deploy: the API starts returning a malformed Insights payload (<code>series: null</code>
+          ). The new dashboard crashes on it, the error boundary reports it to LaunchDarkly Observability and to the API,
+          and the API fires the flag trigger. Rolling back also retires the bad data.
         </p>
-        <button
-          className="btn btn-danger"
-          disabled={!flagOn || crashNewFeature}
-          onClick={() => setCrashNewFeature(true)}
-          title={flagOn ? 'Throw an error inside the Insights dashboard' : 'Turn the flag on first'}
-        >
-          Simulate production bug
+        <button className="btn btn-danger" disabled={!flagOn || chaos || busy} onClick={injectBadData}>
+          Inject bad report data
         </button>
         {!flagOn && <p className="small muted">Turn the flag on first - the Insights dashboard isn't rendered right now.</p>}
       </div>
 
       <FlagActivityLog />
-      <ServerStatus />
+      <ServerStatus onEvent={(e) => setChaosState(e.chaos)} />
     </>
   );
 }

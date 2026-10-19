@@ -1,11 +1,10 @@
+import { LDObserve } from '@launchdarkly/observability';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { reportError, type ReportErrorResponse } from '../api';
 import { FLAG_KEYS } from '../ld/flags';
 
 interface Props {
   children: ReactNode;
-  /** Called once the crash is caught, e.g. to reset the demo's crash switch. */
-  onCrash?: () => void;
 }
 
 interface State {
@@ -23,8 +22,12 @@ interface State {
  *
  * Because <FeatureGate> only renders this boundary while the flag is ON, a
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
- * reset needed. onCrash resets the demo's crash switch so the re-released
- * dashboard renders healthy.
+ * reset needed.
+ *
+ * The crash is also recorded with LaunchDarkly Observability. Errors caught by
+ * a boundary are not "uncaught", so the plugin's automatic capture would miss
+ * them; recordError makes them show up under Observability > Errors with the
+ * session replay attached.
  */
 /**
  * React (in development, and under StrictMode) can replay a render that threw,
@@ -54,7 +57,10 @@ export class PanelErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[InsightsDashboard] crashed:', error, info.componentStack);
-    this.props.onCrash?.();
+    LDObserve.recordError(error, 'Insights dashboard failed to render', {
+      component: 'InsightsDashboard',
+      flag: FLAG_KEYS.INSIGHTS_DASHBOARD,
+    });
     void reportOnce(error.message).then(
       (report) => this.setState({ report }),
       () => this.setState({ report: { remediated: false, reason: 'Could not reach the API' } }),

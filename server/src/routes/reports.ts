@@ -12,6 +12,7 @@
  * never surprises you.
  */
 import { Router } from 'express';
+import { demoState } from '../demo.js';
 import { FLAG_KEYS, isNewReportingOn } from '../ld.js';
 
 export interface MonthRow {
@@ -141,7 +142,10 @@ reportsRouter.get('/reports/usage', async (_req, res) => {
       generatedAt: new Date().toISOString(),
       period: { from: last30[0].date, to: last30[last30.length - 1].date },
       kpis,
-      series: last30,
+      // Chaos mode (Admin drawer -> "Inject bad report data"): the time series
+      // comes back null, as if an upstream job failed. The new dashboard
+      // assumes it is always present, so it crashes - a realistic regression.
+      series: demoState.chaos ? null : last30,
       byTeam,
     });
     return;

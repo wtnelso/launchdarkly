@@ -8,6 +8,7 @@
  * polling or page reload.
  */
 import { Router, type Response } from 'express';
+import { demoState } from '../demo.js';
 import { FLAG_KEYS, isNewReportingOn, ldClient } from '../ld.js';
 
 interface FlagEvent {
@@ -16,6 +17,8 @@ interface FlagEvent {
   at: string;
   /** 'initial' when sent on connect, 'update' when LaunchDarkly pushed a change. */
   reason: 'initial' | 'update';
+  /** Demo: is the API currently returning malformed Insights data? */
+  chaos: boolean;
 }
 
 const subscribers = new Set<Response>();
@@ -25,11 +28,21 @@ function send(res: Response, event: FlagEvent): void {
 }
 
 async function broadcast(reason: FlagEvent['reason']): Promise<void> {
+  const value = await isNewReportingOn();
+
+  // Rolling the release back also retires the bad data that came with it, so
+  // the next release renders healthy.
+  if (!value && demoState.chaos) {
+    demoState.chaos = false;
+    console.log('[Demo] chaos mode reset - the bad release was rolled back');
+  }
+
   const event: FlagEvent = {
     key: FLAG_KEYS.INSIGHTS_DASHBOARD,
-    value: await isNewReportingOn(),
+    value,
     at: new Date().toISOString(),
     reason,
+    chaos: demoState.chaos,
   };
   console.log(`[LaunchDarkly] ${event.key} changed -> ${event.value} (notifying ${subscribers.size} browser(s))`);
   for (const res of subscribers) send(res, event);
@@ -58,6 +71,7 @@ flagEventsRouter.get('/flag-events', async (req, res) => {
     value: await isNewReportingOn(),
     at: new Date().toISOString(),
     reason: 'initial',
+    chaos: demoState.chaos,
   });
 
   // Keep proxies from closing an idle connection.

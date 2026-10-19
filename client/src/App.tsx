@@ -1,7 +1,6 @@
 import { useInitializationStatus } from '@launchdarkly/react-sdk';
 import { useState } from 'react';
 import { AdminDrawer, readDrawerOpen } from './components/AdminDrawer';
-import { DemoControlsProvider } from './demo/DemoControlsContext';
 import { demoContext } from './ld/provider';
 import { SCENARIOS, useScenario } from './scenarios';
 
@@ -13,7 +12,7 @@ export function App() {
   const connected = init.status === 'complete';
 
   return (
-    <DemoControlsProvider>
+    <>
       <div className="shell">
         <header className="topbar">
           <div className="brand">
@@ -72,7 +71,7 @@ export function App() {
           <scenario.Admin />
         </AdminDrawer>
       </div>
-    </DemoControlsProvider>
+    </>
   );
 }
 

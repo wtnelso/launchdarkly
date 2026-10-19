@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { formatCompact, type SeriesPoint } from '../api';
-import { useDemoControls } from '../demo/DemoControlsContext';
 import { useUsageReport } from '../useUsageReport';
 
 /**
@@ -9,15 +8,14 @@ import { useUsageReport } from '../useUsageReport';
  * measure (small multiples, one axis each), and usage by team.
  */
 export function InsightsDashboard() {
-  const { data, error } = useUsageReport('new');
-  const { crashNewFeature } = useDemoControls();
+  // Like any live dashboard, this one refreshes itself. That is also how a
+  // bad upstream deploy reaches users: the next refresh pulls the bad payload.
+  const { data, error, updatedAt, refresh } = useUsageReport('new', { refreshMs: 10_000 });
 
-  // Demo hook: the admin drawer's "Simulate production bug" makes this code
-  // path throw during render, exactly like a real regression would. The
-  // error boundary around the dashboard catches it and the kill switch kicks in.
-  if (crashNewFeature) {
-    throw new TypeError("Cannot read properties of undefined (reading 'series')");
-  }
+  // The "v2 regression": this dashboard assumes `series` is always an array.
+  // When the Admin drawer injects bad report data, the API returns `series: null`
+  // and the TrendChart below throws while rendering - a real crash on real
+  // data, caught by the error boundary around <InsightsDashboard>.
 
   return (
     <section className="panel report insights" aria-labelledby="report-title">
@@ -29,9 +27,16 @@ export function InsightsDashboard() {
             {data ? `${formatDate(data.period.from)} – ${formatDate(data.period.to)} · compared with the previous 30 days` : 'Last 30 days'}
           </p>
         </div>
-        <button className="btn btn-outline" disabled={!data}>
-          Share report
-        </button>
+        <div className="head-actions">
+          {updatedAt && (
+            <span className="muted small">
+              Updated {updatedAt.toLocaleTimeString()} · auto-refreshes every 10s
+            </span>
+          )}
+          <button className="btn btn-outline" onClick={() => void refresh()}>
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="error">Could not load insights: {error}</p>}

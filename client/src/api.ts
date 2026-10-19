@@ -40,6 +40,7 @@ export interface InsightsReport {
   generatedAt: string;
   period: { from: string; to: string };
   kpis: Kpi[];
+  /** Normally an array; the demo's chaos mode makes the API return null here. */
   series: SeriesPoint[];
   byTeam: TeamUsage[];
 }
@@ -72,4 +73,13 @@ export function formatCompact(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (Math.abs(n) >= 10_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString();
+}
+
+export async function setChaos(enabled: boolean): Promise<boolean> {
+  const res = await fetch('/api/demo/chaos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  return ((await res.json()) as { enabled: boolean }).enabled;
 }

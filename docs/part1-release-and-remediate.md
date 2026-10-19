@@ -11,7 +11,7 @@ usage table today, KPI tiles, trend charts and a team breakdown behind the flag.
 | --- | --- | --- |
 | Flag around a new feature | `client/src/components/FeatureGate.tsx` (`useBoolVariation`) and `server/src/routes/reports.ts` (`boolVariation`) | Flag on → Insights dashboard + new API payload. Flag off → usage table + legacy payload. |
 | Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:insights-dashboard')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:insights-dashboard')` → SSE) | Toggle in LaunchDarkly; both log cards in the Admin drawer print a timestamped line and the panel swaps with no reload. |
-| Remediate with a trigger | `scripts/remediate.sh` (manual curl), `server/src/routes/remediate.ts` (automatic on crash) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event. |
+| Remediate with a trigger | `scripts/remediate.sh` (manual curl), `server/src/routes/remediate.ts` (automatic on crash), `server/src/routes/demo.ts` (injects the bad data) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event, Observability → Errors shows the crash with a session replay. |
 
 ## Layout
 
@@ -29,9 +29,11 @@ Open the Admin drawer first so the audience can watch the logs.
 2. Turn it **on**: "That's a production release. No deploy. Every connected browser got it in under
    a second — and the API switched too, so the data matches the UI."
 3. Turn it **off**: "And that's the rollback. Same speed, same blast radius: zero."
-4. Turn it **on**, click **Simulate production bug** under Demo controls: "A regression slipped through. The error
-   boundary contained it, the app reported it, and the trigger turned the feature off for everyone
-   before a human picked up the pager." Then show `npm run remediate` as the manual equivalent an
+4. Turn it **on**, click **Inject bad report data** under Demo controls, wait for the dashboard's
+   10-second refresh: "A bad upstream deploy just shipped. The dashboard pulled the broken payload and
+   crashed. The error boundary contained it, LaunchDarkly Observability recorded it with a session
+   replay, the app reported it, and the trigger turned the feature off for everyone before a human
+   picked up the pager." Then show `npm run remediate` as the manual equivalent an
    on-call engineer or a monitoring tool would use.
 5. Open the flag's **History**: "Every change is attributed and auditable."
 
@@ -46,6 +48,11 @@ Open the Admin drawer first so the audience can watch the logs.
   it down cleanly (`flush` then `close`) on SIGINT/SIGTERM.
 - **Error boundary + trigger** turns "we can roll back fast" into "we can roll back automatically".
   The same trigger URL works from curl, an APM alert, or application code.
+- **The bug is real data handling, not a planted throw.** Chaos mode makes the API return
+  `series: null`; the v2 dashboard assumes the series is always there. Rolling the flag back also
+  retires the bad data, so re-releasing renders healthy.
+- **Observability closes the loop.** The same client-side ID feeds errors and session replays into
+  LaunchDarkly, so the audience sees the crash *in LaunchDarkly* before seeing LaunchDarkly kill it.
 - **REST fallback.** `scripts/remediate-api.sh` uses a semantic patch (`turnFlagOff`) for accounts
   without flag triggers, so the remediation story works on any plan.
 
@@ -55,6 +62,7 @@ _Add screenshots here before submitting:_
 
 - [ ] Flag off — usage table with the Admin drawer open, both listener logs showing `false`
 - [ ] Flag on — Insights dashboard, logs showing `true`, server listener "new"
-- [ ] Crash card after "Simulate production bug"
+- [ ] Crash card after "Inject bad report data"
+- [ ] LaunchDarkly Observability → Errors showing the recorded error and its session replay
 - [ ] Terminal output of `npm run remediate` (HTTP 200)
 - [ ] LaunchDarkly flag History tab showing the trigger entry

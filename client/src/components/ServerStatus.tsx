@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { FLAG_KEYS } from '../ld/flags';
 
-interface ServerEvent {
+export interface ServerEvent {
   key: string;
   value: boolean;
   at: string;
   reason: 'initial' | 'update';
+  /** Demo: the API is currently returning malformed Insights data. */
+  chaos: boolean;
 }
 
 /**
@@ -14,7 +16,7 @@ interface ServerEvent {
  * change to the browser over Server-Sent Events. Seeing both logs move at the
  * same moment proves the whole stack flipped - not just the UI.
  */
-export function ServerStatus() {
+export function ServerStatus({ onEvent }: { onEvent?: (e: ServerEvent) => void }) {
   const [events, setEvents] = useState<ServerEvent[]>([]);
   const [connected, setConnected] = useState(false);
 
@@ -25,8 +27,10 @@ export function ServerStatus() {
     source.onmessage = (msg) => {
       const event = JSON.parse(msg.data) as ServerEvent;
       setEvents((prev) => [event, ...prev].slice(0, 20));
+      onEvent?.(event);
     };
     return () => source.close();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const latest = events[0];

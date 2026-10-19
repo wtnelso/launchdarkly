@@ -7,11 +7,13 @@
  *   GET  /api/reports/usage - flag-dependent usage report (legacy table vs Insights)
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
  *   POST /api/report-error  - optional automatic kill switch via flag trigger
+ *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
  */
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import { ldClient, waitForLaunchDarkly } from './ld.js';
+import { demoRouter } from './routes/demo.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
 import { reportsRouter } from './routes/reports.js';
 import { remediateRouter } from './routes/remediate.js';
@@ -29,6 +31,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api', reportsRouter);
 app.use('/api', flagEventsRouter);
 app.use('/api', remediateRouter);
+app.use('/api', demoRouter);
 
 async function main(): Promise<void> {
   await waitForLaunchDarkly();

@@ -129,3 +129,5 @@ p { margin: 6px 0; line-height: 1.45; }
 .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .dot.on { background: #22c55e; }
 .dot.off { background: #c3c8d3; }
+.pill.warn { color: var(--warn); border-color: rgba(180, 83, 9, 0.35); background: #fff7e6; }
+.head-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }

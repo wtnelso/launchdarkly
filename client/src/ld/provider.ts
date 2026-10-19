@@ -7,7 +7,9 @@
  * LaunchDarkly, so a toggle in the LaunchDarkly UI re-renders this app in well
  * under a second with no page reload.
  */
+import Observability from '@launchdarkly/observability';
 import { createLDReactProvider, type LDContext } from '@launchdarkly/react-sdk';
+import SessionReplay from '@launchdarkly/session-replay';
 
 // REPLACE ME: set VITE_LD_CLIENT_SIDE_ID in client/.env (see client/.env.example).
 // This is the *client-side ID*, not the SDK key. It is safe to ship to browsers.
@@ -39,6 +41,20 @@ export function createProvider() {
       // Streaming is on by default when a variation hook is used; set explicitly
       // so it's obvious during the demo that real-time updates are intentional.
       streaming: true,
+      // LaunchDarkly Observability + Session Replay. They reuse the client-side
+      // ID (no extra keys) and send errors, network calls, logs and a replay of
+      // the session to LaunchDarkly > Observability. During the demo this is
+      // how you show "LaunchDarkly saw the crash" before "LaunchDarkly killed it".
+      plugins: [
+        new Observability({
+          networkRecording: { enabled: true, recordHeadersAndBody: true },
+        }),
+        new SessionReplay({
+          // 'default' masks form inputs but keeps text readable in the replay.
+          // 'strict' blanks all text (safer for real customer data, useless for a demo).
+          privacySetting: 'default',
+        }),
+      ],
     },
   });
 }

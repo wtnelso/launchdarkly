@@ -1,5 +1,4 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
-import { useDemoControls } from '../demo/DemoControlsContext';
 import { FLAG_KEYS } from '../ld/flags';
 import { InsightsDashboard } from './InsightsDashboard';
 import { PanelErrorBoundary } from './PanelErrorBoundary';
@@ -19,11 +18,10 @@ import { UsageReportTable } from './UsageReportTable';
  */
 export function FeatureGate() {
   const insightsEnabled = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
-  const { setCrashNewFeature } = useDemoControls();
 
   if (insightsEnabled) {
     return (
-      <PanelErrorBoundary onCrash={() => setCrashNewFeature(false)}>
+      <PanelErrorBoundary>
         <InsightsDashboard />
       </PanelErrorBoundary>
     );
