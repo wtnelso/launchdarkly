@@ -9,16 +9,26 @@ through. This app shows that workflow with a redesigned pricing panel on the bil
 | Requirement | Where it lives | What you'll see |
 | --- | --- | --- |
 | Flag around a new feature | `client/src/components/FeatureGate.tsx` (`useBoolVariation`) and `server/src/routes/pricing.ts` (`boolVariation`) | Flag on → three-tier pricing panel + new API payload. Flag off → legacy table + legacy payload. |
-| Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:new-pricing-panel')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:new-pricing-panel')` → SSE) | Toggle in LaunchDarkly; both log cards print a timestamped line and the panel swaps with no reload. |
+| Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:new-pricing-panel')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:new-pricing-panel')` → SSE) | Toggle in LaunchDarkly; both log cards in the Admin drawer print a timestamped line and the panel swaps with no reload. |
 | Remediate with a trigger | `scripts/remediate.sh` (manual curl), `server/src/routes/remediate.ts` (automatic on crash) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event. |
 
+## Layout
+
+The page is split into what a customer sees and what an operator sees. The customer view is the
+whole page. Everything operational - LaunchDarkly connection status, release steps, demo controls,
+and the client/server flag logs - lives in the **Admin** drawer (top right), which slides over the
+page without disturbing it. The **part picker** next to it selects the exercise part; each part
+registers its own end-user view and admin panel in `client/src/scenarios/index.ts`.
+
 ## Suggested 3-minute demo
+
+Open the Admin drawer first so the audience can watch the logs.
 
 1. Start with the flag **off**: "This is what every customer sees today."
 2. Turn it **on**: "That's a production release. No deploy. Every connected browser got it in under
    a second — and the API switched too, so the data matches the UI."
 3. Turn it **off**: "And that's the rollback. Same speed, same blast radius: zero."
-4. Turn it **on**, click **Simulate production bug**: "A regression slipped through. The error
+4. Turn it **on**, click **Simulate production bug** under Demo controls: "A regression slipped through. The error
    boundary contained it, the app reported it, and the trigger turned the feature off for everyone
    before a human picked up the pager." Then show `npm run remediate` as the manual equivalent an
    on-call engineer or a monitoring tool would use.
@@ -42,7 +52,7 @@ through. This app shows that workflow with a redesigned pricing panel on the bil
 
 _Add screenshots here before submitting:_
 
-- [ ] Flag off — legacy panel, both listener logs showing `false`
+- [ ] Flag off — legacy panel with the Admin drawer open, both listener logs showing `false`
 - [ ] Flag on — new panel, logs showing `true`, server variant "new"
 - [ ] Crash card after "Simulate production bug"
 - [ ] Terminal output of `npm run remediate` (HTTP 200)

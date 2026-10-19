@@ -1,4 +1,5 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
+import { useDemoControls } from '../demo/DemoControlsContext';
 import { FLAG_KEYS } from '../ld/flags';
 import { LegacyPricingPanel } from './LegacyPricingPanel';
 import { NewPricingPanel } from './NewPricingPanel';
@@ -18,10 +19,11 @@ import { PanelErrorBoundary } from './PanelErrorBoundary';
  */
 export function FeatureGate() {
   const newPanelEnabled = useBoolVariation(FLAG_KEYS.NEW_PRICING_PANEL, false);
+  const { setCrashNewPanel } = useDemoControls();
 
   if (newPanelEnabled) {
     return (
-      <PanelErrorBoundary>
+      <PanelErrorBoundary onCrash={() => setCrashNewPanel(false)}>
         <NewPricingPanel />
       </PanelErrorBoundary>
     );

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useDemoControls } from '../demo/DemoControlsContext';
 import { usePricing } from '../usePricing';
 
 /**
@@ -6,17 +7,17 @@ import { usePricing } from '../usePricing';
  * `new-pricing-panel` flag. Three tiers, an annual-billing toggle, and a
  * highlighted recommended plan.
  *
- * It also has a "Simulate production bug" button. Clicking it makes the
- * component throw during render, exactly like a real regression would. The
- * error boundary around this panel catches it and the remediation story
- * (flag trigger) kicks in.
+ * The admin drawer's "Simulate production bug" control sets a flag in
+ * DemoControlsContext; when it is set this component throws during render,
+ * exactly like a real regression would. The error boundary around this panel
+ * catches it and the remediation story (flag trigger) kicks in.
  */
 export function NewPricingPanel() {
   const { data, error } = usePricing('new');
   const [annual, setAnnual] = useState(false);
-  const [crash, setCrash] = useState(false);
+  const { crashNewPanel } = useDemoControls();
 
-  if (crash) {
+  if (crashNewPanel) {
     // Deliberate, realistic-looking failure inside the new code path.
     throw new TypeError("Cannot read properties of undefined (reading 'annualPrice')");
   }
@@ -64,15 +65,6 @@ export function NewPricingPanel() {
           ))}
         </div>
       )}
-
-      <div className="danger-zone">
-        <div>
-          <strong>Demo control:</strong> pretend a regression shipped inside this new panel.
-        </div>
-        <button className="btn btn-danger" onClick={() => setCrash(true)}>
-          Simulate production bug
-        </button>
-      </div>
 
       <p className="fineprint">Served by: {data ? `server variant "${data.variant}"` : '—'}</p>
     </section>

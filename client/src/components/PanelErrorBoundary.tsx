@@ -4,6 +4,8 @@ import { FLAG_KEYS } from '../ld/flags';
 
 interface Props {
   children: ReactNode;
+  /** Called once the crash is caught, e.g. to reset the demo's crash switch. */
+  onCrash?: () => void;
 }
 
 interface State {
@@ -21,8 +23,28 @@ interface State {
  *
  * Because <FeatureGate> only renders this boundary while the flag is ON, a
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
- * reset needed.
+ * reset needed. onCrash resets the demo's crash switch so the re-released
+ * panel renders healthy.
  */
+/**
+ * React (in development, and under StrictMode) can replay a render that threw,
+ * which would call componentDidCatch twice for one crash and fire the kill
+ * switch twice. Share one in-flight report per error message for a few
+ * seconds so each incident is reported - and the trigger fired - exactly once.
+ */
+const REPORT_DEDUPE_MS = 5_000;
+let lastReport: { message: string; at: number; promise: Promise<ReportErrorResponse> } | null = null;
+
+function reportOnce(message: string): Promise<ReportErrorResponse> {
+  const now = Date.now();
+  if (lastReport && lastReport.message === message && now - lastReport.at < REPORT_DEDUPE_MS) {
+    return lastReport.promise;
+  }
+  const promise = reportError(FLAG_KEYS.NEW_PRICING_PANEL, message);
+  lastReport = { message, at: now, promise };
+  return promise;
+}
+
 export class PanelErrorBoundary extends Component<Props, State> {
   state: State = { error: null, report: null };
 
@@ -32,7 +54,8 @@ export class PanelErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
     console.error('[NewPricingPanel] crashed:', error, info.componentStack);
-    void reportError(FLAG_KEYS.NEW_PRICING_PANEL, error.message).then(
+    this.props.onCrash?.();
+    void reportOnce(error.message).then(
       (report) => this.setState({ report }),
       () => this.setState({ report: { remediated: false, reason: 'Could not reach the API' } }),
     );

@@ -138,9 +138,19 @@ Edit the two `.env` files and paste the values from the setup above:
 npm run dev
 ```
 
-Open <http://localhost:5173>. The header should say **LaunchDarkly: connected**, the sidebar's
-*Server listener* card should say **SSE connected**, and because the flag is off you should see the
-plain **Plans & Pricing** table (the legacy panel).
+Open <http://localhost:5173>. You'll see the customer-facing billing page: because the flag is off
+it shows the plain **Plans & Pricing** table (the legacy panel). The top-right corner has two
+controls that customers would never see:
+
+- **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts. Each part has
+  its own end-user view and admin panel; the choice is kept in the URL hash (`#part-1`).
+- **Admin** button - opens a drawer that slides over the right edge (it never reflows the customer
+  view). It holds the LaunchDarkly connection status, release instructions, demo controls, and the
+  client- and server-side flag change logs. Press <kbd>Esc</kbd> to close it; it remembers whether
+  it was open.
+
+Open the Admin drawer: the header should say **connected** and the *Server listener* card
+**SSE connected**.
 
 Other commands:
 
@@ -154,13 +164,13 @@ Other commands:
 
 ## Demo script: release → rollback → remediate
 
-Put the LaunchDarkly flag page and the dashboard side by side. **Never reload the browser** during
-the demo — that is the point.
+Put the LaunchDarkly flag page and the dashboard side by side, with the **Admin** drawer open so
+the logs are visible. **Never reload the browser** during the demo — that is the point.
 
 1. **Release.** In LaunchDarkly flip `new-pricing-panel` **On** and **Review and save**.
-   Within about a second the dashboard swaps to the redesigned three-tier panel. In the sidebar,
-   *Client listener* logs `Flag changed → true` and *Server listener* logs the same from the Node
-   API. The panel's footer shows `server variant "new"`: the API is serving new pricing too.
+   Within about a second the dashboard swaps to the redesigned three-tier panel. In the Admin
+   drawer, *Client listener* logs `Flag changed → true` and *Server listener* logs the same from the
+   Node API. The panel's footer shows `server variant "new"`: the API is serving new pricing too.
 2. **Rollback.** Flip the flag **Off**. The legacy table is back instantly, both logs record
    `→ false`. That is your zero-downtime rollback: no deploy, no restart, no reload.
 3. **Remediate (manual, via flag trigger).** Flip the flag **On** again. Now imagine an alert
@@ -178,10 +188,10 @@ the demo — that is the point.
      -d '{"eventName":"Rolling back new pricing panel","url":"http://localhost:5173"}'
    ```
 
-4. **Remediate (automatic kill switch, bonus).** Flip the flag **On** once more and click
-   **Simulate production bug** inside the new panel. The panel crashes, an error boundary contains
-   it (the rest of the dashboard keeps working) and reports it to the API, and the API fires the
-   same trigger. Watch the flag turn Off by itself and the UI roll back — no human in the loop.
+4. **Remediate (automatic kill switch, bonus).** Flip the flag **On** once more and, in the Admin
+   drawer under **Demo controls**, click **Simulate production bug**. The new panel crashes, an
+   error boundary contains it (the rest of the dashboard keeps working) and reports it to the API,
+   and the API fires the same trigger. Watch the flag turn Off by itself and the UI roll back — no human in the loop.
    Without `LD_TRIGGER_URL` the crash card instead tells the operator how to remediate by hand.
 
 5. **Audit.** Open the flag's **History** tab in LaunchDarkly: every change is attributed — your
@@ -220,11 +230,16 @@ context with attributes.
 ├── client/                   Vite + React 19 + TypeScript
 │   ├── .env.example          VITE_LD_CLIENT_SIDE_ID
 │   └── src/
+│       ├── App.tsx           top bar (part picker + Admin toggle), end-user view, admin drawer
+│       ├── scenarios/        one entry per exercise part: { View, Admin }
+│       │   └── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
+│       ├── demo/DemoControlsContext.tsx   admin-drawer controls that act on the end-user view
 │       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming)
 │       ├── ld/flags.ts       flag keys
 │       ├── components/
+│       │   ├── AdminDrawer.tsx         collapsible overlay for admin tooling
 │       │   ├── FeatureGate.tsx         useBoolVariation → New or Legacy panel
-│       │   ├── NewPricingPanel.tsx     the flagged feature (+ "Simulate production bug")
+│       │   ├── NewPricingPanel.tsx     the flagged feature
 │       │   ├── LegacyPricingPanel.tsx  the rollback target
 │       │   ├── PanelErrorBoundary.tsx  catches the crash, calls /api/report-error
 │       │   ├── FlagActivityLog.tsx     explicit client.on('change:…') listener
@@ -253,5 +268,5 @@ context with attributes.
 | Server log: `Server SDK failed to initialize` | Wrong SDK key, or no network. Flags fall back to defaults (legacy panel). |
 | `npm run remediate` → `LD_TRIGGER_URL is not set` | Create the trigger (setup step 4) or use `npm run remediate:api`. |
 | `npm run remediate` → HTTP 401/404 | The trigger URL was reset or belongs to another environment. Reset it in LaunchDarkly and update `server/.env`. |
-| Sidebar says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
+| Admin drawer says `disconnected` for the server listener | The API isn't running on 3001. Check the `server` lines in the `npm run dev` output. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |
