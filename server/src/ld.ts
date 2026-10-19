@@ -39,6 +39,13 @@ export const FLAG_KEYS = {
    * hero (v2), false = classic hero. Targeted by context attributes.
    */
   LANDING_HERO_V2: 'landing-hero-v-2',
+  /**
+   * REPLACE ME if you named your AI Config differently.
+   * Part 4: the AI Config (completion mode) that holds the support assistant's
+   * model and prompt. Evaluated server-side only, through the AI SDK
+   * (server/src/ai/supportAssistant.ts).
+   */
+  SUPPORT_ASSISTANT: 'support-assistant',
 } as const;
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];
@@ -120,7 +127,8 @@ export function logFlagEvent(
 
   void LDObserve.runWithHeaders(`incident.${event}`, {}, async (span) => {
     span.setAttributes(attributes);
-    await ldClient.boolVariation(flag, serverContext, false);
+    // variation() rather than boolVariation(): the AI Config is a JSON-valued flag.
+    await ldClient.variation(flag, serverContext, false);
     LDObserve.recordLog(message, level, undefined, undefined, attributes);
   }).catch((err: unknown) => console.warn('[LaunchDarkly] telemetry failed:', err));
 }

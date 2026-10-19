@@ -10,11 +10,14 @@
  *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
  *   POST /api/demo/simulate-traffic - Part 3: bulk synthetic experiment traffic (exposures + conversions)
  *   POST /api/landing/evaluate - Part 2: evaluate landing-hero-v-2 for a visitor context
+ *   POST /api/chat, /api/chat/feedback, /api/chat/evaluate - Part 4: support assistant driven by an AI Config
+ *   POST /api/demo/simulate-chats - Part 4: synthetic conversations with feedback for the experiment
  */
 import 'dotenv/config';
 import cors from 'cors';
 import express from 'express';
 import { ldClient, waitForLaunchDarkly } from './ld.js';
+import { chatRouter } from './routes/chat.js';
 import { demoRouter } from './routes/demo.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
 import { landingRouter } from './routes/landing.js';
@@ -36,6 +39,7 @@ app.use('/api', flagEventsRouter);
 app.use('/api', remediateRouter);
 app.use('/api', demoRouter);
 app.use('/api', landingRouter);
+app.use('/api', chatRouter);
 
 async function main(): Promise<void> {
   await waitForLaunchDarkly();

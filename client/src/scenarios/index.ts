@@ -4,6 +4,8 @@ import { Part1View } from './part1/Part1View';
 import { Part2Admin } from './part2/Part2Admin';
 import { Part2View } from './part2/Part2View';
 import { Part3Admin } from './part3/Part3Admin';
+import { Part4Admin } from './part4/Part4Admin';
+import { Part4View } from './part4/Part4View';
 
 /**
  * Each part of the exercise is a "scenario": an end-user view (what ABC
@@ -25,6 +27,8 @@ export const SCENARIOS: Scenario[] = [
   { id: 'part-2', label: 'Part 2 · Target', View: Part2View, Admin: Part2Admin },
   // Extra credit: same landing page and flag; the admin panel drives an experiment.
   { id: 'part-3', label: 'Part 3 · Experiment', View: Part2View, Admin: Part3Admin },
+  // Extra credit: a support chatbot whose model and prompt live in a LaunchDarkly AI Config.
+  { id: 'part-4', label: 'Part 4 · AI Config', View: Part4View, Admin: Part4Admin },
 ];
 
 function fromHash(): Scenario {

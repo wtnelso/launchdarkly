@@ -20,6 +20,13 @@ export const FLAG_KEYS = {
    * (individual targets + rules). Must be available to client-side SDKs.
    */
   LANDING_HERO_V2: 'landing-hero-v-2',
+  /**
+   * REPLACE ME if you named your AI Config differently.
+   * Part 4: the AI Config holding the support assistant's model and prompt. It
+   * is evaluated on the server (AI Configs are server-side); the browser only
+   * displays what the API reports.
+   */
+  SUPPORT_ASSISTANT: 'support-assistant',
 } as const;
 
 export type FlagKey = (typeof FLAG_KEYS)[keyof typeof FLAG_KEYS];

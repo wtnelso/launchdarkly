@@ -10,8 +10,8 @@ adding risk** by wrapping new code in a LaunchDarkly feature flag:
 | **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer can also **inject bad report data**: the API starts returning a malformed payload, the new dashboard crashes on it, the error is recorded in **LaunchDarkly Observability** (with session replay), and the API fires the same trigger automatically (an automatic kill switch). |
 
 This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise; [Part 2
-(Target)](#part-2-target) and the [Experimentation extra credit](#extra-credit-experimentation)
-build on it. Code paths that depend on *your* LaunchDarkly account are marked with `REPLACE ME`
+(Target)](#part-2-target), the [Experimentation extra credit](#extra-credit-experimentation) and
+the [AI Configs extra credit](#extra-credit-ai-configs) build on it. Code paths that depend on *your* LaunchDarkly account are marked with `REPLACE ME`
 comments.
 
 ---
@@ -25,9 +25,10 @@ comments.
 5. [Demo script: release → rollback → remediate](#demo-script-release--rollback--remediate)
 6. [Part 2: Target](#part-2-target)
 7. [Extra credit: Experimentation](#extra-credit-experimentation)
-8. [How it works](#how-it-works)
-9. [Project layout](#project-layout)
-10. [Troubleshooting](#troubleshooting)
+8. [Extra credit: AI Configs](#extra-credit-ai-configs)
+9. [How it works](#how-it-works)
+10. [Project layout](#project-layout)
+11. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -148,7 +149,7 @@ it shows today's **Usage report**, a plain monthly table with an Export CSV butt
 controls that customers would never see:
 
 - **Part picker** (`Part 1 · Release & Remediate`) - switches between exercise parts (Part 1, Part 2,
-  and the Part 3 extra credit). Each part has its own end-user view and admin panel; the choice is
+  and the Part 3 and Part 4 extra credits). Each part has its own end-user view and admin panel; the choice is
   kept in the URL hash (`#part-1`).
 - **Admin** button - opens a drawer that slides over the right edge (it never reflows the customer
   view). It holds the LaunchDarkly connection status, release instructions, demo controls, and the
@@ -169,6 +170,8 @@ Other commands:
 | `npm run remediate:api` | Same, via the REST API (fallback) |
 | `npm run setup:part2` | Configures Part 2 targeting on `landing-hero-v-2` via the REST API |
 | `curl -X POST localhost:3001/api/demo/simulate-traffic -H 'Content-Type: application/json' -d '{"visitors":500}'` | Part 3: bulk experiment traffic from the Node SDK (also a button in the Admin drawer) |
+| `curl -X POST localhost:3001/api/chat -H 'Content-Type: application/json' -d '{"context":{"kind":"user","key":"demo"},"message":"Where is my invoice?"}'` | Part 4: one support reply from the AI Config |
+| `curl -X POST localhost:3001/api/demo/simulate-chats -H 'Content-Type: application/json' -d '{"conversations":300}'` | Part 4: synthetic conversations with feedback for the experiment |
 
 ## Demo script: release → rollback → remediate
 
@@ -361,6 +364,128 @@ yours may differ slightly.
 > `hero-cta-click` events to arrive *after* the exposure for the same user key, which both
 > simulators guarantee by evaluating before tracking.
 
+## Extra credit: AI Configs
+
+Select **Part 4 · AI Config**. The end-user view is ABC Analytics' **Help Center** with a support
+assistant. The assistant's **model and prompt are not in the code**: they live in the LaunchDarkly
+**AI Config `support-assistant`**. The product manager edits a variation's system message or swaps
+its model in LaunchDarkly and the very next reply uses it. Targeting picks a variation per visitor,
+the config can be toggled off as a kill switch, and an experiment compares variations on the
+satisfaction, latency and token metrics the SDK reports.
+
+**There is no real LLM behind it.** The exercise is about managing prompts and models, so the server
+answers with a local deterministic responder (`server/src/ai/localResponder.ts`) that honours the
+config: the prompt text decides the *style* (a prompt that says "concise" gets two terse sentences;
+one that says "warm and thorough" gets a greeting, numbered steps and a plan tip), the model name
+decides *latency* (names containing `mini`, `haiku`, `flash`, `nano`, `small` or `lite` answer in
+~300 ms, anything else in ~1.5 s), `max_tokens` caps the reply and token counts are estimated at
+four characters per token. Swap it for a real provider call and the tracking code stays the same.
+
+### How the app uses the AI Config
+
+```
+POST /api/chat { context, message }
+  └─ aiClient.completionConfig('support-assistant', context, SUPPORT_ASSISTANT_DEFAULT, { customerName, plan, company, product })
+       ├─ enabled: false  → reply "assistant unavailable" (kill switch)
+       └─ tracker = config.createTracker()
+            respond(config.messages, config.model, …)   ← local responder (or your LLM call)
+            tracker.trackDuration(ms) · trackTokens({input, output, total}) · trackSuccess()
+            → { reply, served: { variationKey, version, model, provider, messages }, resumptionToken }
+POST /api/chat/feedback { context, resumptionToken, kind }
+  └─ aiClient.createTracker(resumptionToken, context).trackFeedback({ kind })   ← same generation (runId)
+```
+
+`server/src/ai/supportAssistant.ts` holds the config key, the in-code default (used only when
+LaunchDarkly cannot serve the config), the variable mapping from the visitor's context, and the
+tracker calls. `REPLACE ME` there and in `client/src/ld/flags.ts` if you name the config
+differently. The metrics the tracker sends (`$ld:ai:duration:total`, `$ld:ai:tokens:*`,
+`$ld:ai:generation:success`, `$ld:ai:feedback:user:*`) are what LaunchDarkly charts on the config's
+**Monitoring** tab and offers as autogenerated metrics in experiments.
+
+### LaunchDarkly setup (one time)
+
+AI Configs live under **Agents → Configs** in the left nav (older accounts: **AI Configs**; the docs
+now call the feature AgentControl). Labels may differ slightly between accounts.
+
+1. **Create the config.** **Agents → Configs → Create config**. Type **Completion**. Name
+   `Support assistant`; click **Edit key** and set the key to **`support-assistant`** (keys can't be
+   changed later). **Create**.
+2. **Variation 1 – "Concise (fast model)".** On the **Variations** tab the first variation is
+   waiting: name it `Concise (fast model)`. **Select a model** → pick a *small* model from the list
+   (any name containing `mini`, `haiku`, `flash`, `nano`, `small` or `lite`; if none fits, **+ Add a
+   model** → *Add custom model*, e.g. name `abc-support-small`, provider of your choice, model ID
+   `abc-support-small`, costs 0.15 / 0.60 per million tokens). **Add parameters → Model
+   parameters**: `temperature` `0.2`, `max_tokens` `120`. Leave the message role as **system** and
+   paste:
+
+   ```
+   You are the {{product}} support assistant for {{company}}. The customer is {{customerName}} on the {{plan}} plan. Be concise: answer in at most two short sentences, no greetings, no emoji. If the question is about billing, say an account manager will follow up.
+   ```
+
+3. **Variation 2 – "Friendly & thorough".** **Add variation**, name `Friendly & thorough`, pick a
+   *large* model (e.g. a Claude Sonnet/Opus or GPT-4-class model, or a custom `abc-support-large`
+   at 3 / 15 per million), parameters `temperature` `0.7`, `max_tokens` `400`, system message:
+
+   ```
+   You are the {{product}} support assistant for {{company}}. Greet {{customerName}} by name, be warm and thorough: explain the why, give numbered steps, and mention one relevant {{plan}}-plan tip. End by asking if that solved it.
+   ```
+
+   **Review and save** → **Save**. (Each save creates a new version; the Admin drawer shows it.)
+4. **Targeting** tab, environment `Test`: the config is on by default and the first variation is the
+   **Default rule**. Optionally **+ Add rule** → *Enterprise organizations*: context kind
+   **organization**, attribute **plan**, *is one of*, `enterprise` → serve **Friendly & thorough**,
+   so Carla gets the premium experience. **Review and save**.
+5. Open the app, pick **Part 4 · AI Config**, open the Admin drawer: the *Served configuration* card
+   should show the variation, model and rendered prompt, reason *Default rule*. If it says
+   **Fallback**, the key does not match or the SDK is offline.
+
+### Experiment setup (optional)
+
+The autogenerated AI metrics appear once LaunchDarkly has received the SDK's events, so **send one
+chat turn and one 👍 first** (or run the simulator once).
+
+1. **Create → Experiment** (or **Experiments → Create experiment**). Name `Support prompt: concise
+   vs friendly`; hypothesis `A warm, thorough prompt on a larger model earns more positive feedback
+   than a concise prompt on a small model.`
+2. **Design:** assignment method **LaunchDarkly flag or config** → `support-assistant` → targeting
+   rule **Default rule** → **Randomize by** `user` → audience 100 % → **Control** `Concise (fast
+   model)` → **Split equally**.
+3. **Metrics:** source LaunchDarkly → primary **Positive AI feedback rate** (higher is better);
+   secondaries **Average AI completion time** and **Average total tokens per AI completion** (lower
+   is better). Keep Bayesian. **Save**, then **Start**.
+
+### Demo script
+
+1. **Chat.** As the Anonymous visitor click *Where is my invoice?*. A two-sentence answer arrives in
+   about 300 ms. The drawer: variation *Concise (fast model)*, your small model, *Default rule*,
+   the rendered prompt with `there` / `free` / `your team` filled in. Click **👍**: the *Turns* row
+   shows the rating and `POST /api/chat/feedback` attaches it to that generation.
+2. **Switch to Carla** in the drawer. With the enterprise rule she gets *Friendly & thorough*: "Hi
+   Carla, sorry you're locked out…", numbered steps, an enterprise tip, and ~1.5 s latency from the
+   large model. Same code; the configuration did the work.
+3. **Edit the prompt in LaunchDarkly.** Change the Concise variation's message to "…be warm and
+   thorough, give numbered steps…", **Review and save**, ask again as Anonymous: the style flips and
+   the drawer shows the new version number. Revert when done.
+4. **Kill switch.** Toggle the config **off**: the next question gets the "taking a break" banner and
+   the drawer pill reads *Config off*. Toggle it back on.
+5. **Simulate conversations.** Leave the defaults (300 conversations × 2 turns; concise prompts get
+   👍 55 % of the time, friendly ones 80 %) and click **Simulate 300 conversations**. In under two
+   seconds the API evaluates the config for 300 random visitors (fresh user keys, so each is its
+   own experiment bucket), generates replies, records duration and tokens, and rates them. The table
+   shows turns, 👍 rate, average ms and tokens per variation.
+
+   ```bash
+   curl -X POST localhost:3001/api/demo/simulate-chats -H 'Content-Type: application/json' \
+     -d '{"conversations":300,"turns":2,"positiveConcise":0.55,"positiveFriendly":0.8}'
+   ```
+
+6. **Read the results.** On the config's **Monitoring** tab: *Generations*, *Satisfaction* (👍
+   rate), *Time to generate*, *Tokens* and *Costs* per variation. On the experiment's **Results**
+   tab: *Positive AI feedback rate* per variation with the probability to beat control, and the
+   price of that satisfaction in completion time and tokens. "Friendly wins 80 % vs 55 % on
+   satisfaction, at 4× the latency and 3× the tokens." Ship the winner by editing the default rule,
+   or target it only where it pays (enterprise) - all in LaunchDarkly, no deploy.
+
 ## How it works
 
 **Flag evaluation and the listener (client).** `client/src/components/FeatureGate.tsx` calls
@@ -424,7 +549,8 @@ context with attributes.
 │       ├── scenarios/        one entry per exercise part: { View, Admin }
 │       │   ├── part1/        Part1View (FeatureGate), Part1Admin (controls + logs)
 │       │   ├── part2/        Part2View (landing page, HeroGate + CTA tracking), Part2Admin (personas, evaluation), personas.ts, personaStore.ts
-│       │   └── part3/        Part3Admin (experiment panel), simulateTraffic.ts (identify → evaluate → track loop), syntheticVisitors.ts
+│       │   ├── part3/        Part3Admin (experiment panel), simulateTraffic.ts (identify → evaluate → track loop), syntheticVisitors.ts
+│       │   └── part4/        Part4View (Help Center chat with 👍/👎), Part4Admin (served config, turns, simulator), chatStore.ts
 │       ├── ld/provider.ts    createLDReactProvider (client-side ID, context, streaming, observability plugins)
 │       ├── ld/telemetry.ts   logFlagEvent(): flag-tagged logs for Monitoring > Logs
 │       ├── ld/metrics.ts     METRIC_EVENTS + trackHeroCtaClick(): client.track() for the experiment metrics
@@ -442,15 +568,17 @@ context with attributes.
 │   ├── .env.example          LD_SDK_KEY, LD_TRIGGER_URL, API_PORT (+ REST fallback vars)
 │   └── src/
 │       ├── ld.ts             Node SDK singleton + observability plugin, logFlagEvent(), METRIC_EVENTS
+│       ├── ai/supportAssistant.ts   AI SDK client, completionConfig() + tracker (duration, tokens, success, feedback)
+│       ├── ai/localResponder.ts     deterministic stand-in for the LLM (style from prompt, latency from model name)
 │       ├── demo.ts           demo-only chaos state (malformed Insights payload)
-│       ├── synthetic.ts      random visitors for the bulk traffic simulation
+│       ├── synthetic.ts      random visitors for the bulk simulations
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
-│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts (chaos + simulate-traffic), landing.ts (Part 2 evaluate)
+│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts, demo.ts (chaos + simulators), landing.ts (Part 2 evaluate), chat.ts (Part 4)
 ├── scripts/
 │   ├── remediate.sh          curl → flag trigger
 │   ├── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)
 │   └── setup-part2-targeting.sh   REST API semantic patch: targets + rules for Part 2
-└── docs/                     part1-…, part2-targeting.md, part3-experimentation.md (reviewer walkthroughs)
+└── docs/                     part1-…, part2-targeting.md, part3-experimentation.md, part4-ai-configs.md (reviewer walkthroughs)
 ```
 
 ## Troubleshooting
@@ -473,4 +601,8 @@ context with attributes.
 | Experiment Results stay empty after simulating | The experiment wasn't started yet when the traffic ran (only summary events are sent until then), or the metric's event key doesn't match `hero-cta-click` in `client/src/ld/metrics.ts`. Start the experiment, run the simulation again, wait a few minutes. |
 | Experiment shows exposures but no conversions | The metric was created with a different event key or the wrong randomization unit (it must be `user`). Check Metrics → the metric → event key, then the **Your own clicks** log and the `events/bulk` request payload. |
 | Simulation is slow or logs identify errors | Each browser visitor is one `identify()` round trip (~200 ms). Use **Bulk via API** for volume; identify errors usually mean the network dropped - the run continues. |
+| Part 4 drawer pill says **Fallback** | LaunchDarkly did not serve `support-assistant`: the config doesn't exist yet, its key differs from `server/src/ld.ts`, or the server SDK isn't initialized. The in-code default answers meanwhile. |
+| Part 4 chat shows the "taking a break" banner | The config is toggled **off** in this environment (`enabled: false`). That's the kill switch working; turn it back on. |
+| Experiment builder doesn't offer the AI metrics | LaunchDarkly creates them after the first `$ld:ai:*` events arrive. Send one chat turn and a 👍 (or run the simulator), wait a minute, reload the builder. |
+| Replies don't change after editing the variation | Check the drawer's version number: if it didn't bump, the change wasn't saved (**Review and save**). The responder keys on the words *concise* vs *warm/thorough/numbered steps* and on the model name. |
 | Port already in use | Change `API_PORT` in `server/.env` **and** the proxy target in `client/vite.config.ts`. |

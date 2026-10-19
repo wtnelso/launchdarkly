@@ -10,11 +10,21 @@
  * Part 3 (Experimentation): bulk synthetic traffic from the server SDK. The
  * Node SDK evaluates flags locally, so thousands of visitors take well under a
  * second; the exposures and conversions are batched and flushed to LaunchDarkly.
+ *
+ * POST /api/demo/simulate-chats { conversations, turns, positiveConcise, positiveFriendly }
+ *
+ * Part 4 (AI Config): synthetic support conversations. Each visitor gets the
+ * AI Config evaluated (its own experiment bucket), a generated reply with
+ * duration/token metrics, and thumbs up/down with a probability that depends
+ * on the *style* of the served prompt - so an experiment on the config's
+ * variations has a satisfaction difference to find.
  */
 import { Router } from 'express';
 import { demoState } from '../demo.js';
+import { AI_CONFIG_KEY, runSupportTurn } from '../ai/supportAssistant.js';
 import { FLAG_KEYS, METRIC_EVENTS, ldClient, logFlagEvent } from '../ld.js';
 import { randomTimeToClick, randomVisitor } from '../synthetic.js';
+import { LDFeedbackKind } from '@launchdarkly/server-sdk-ai';
 
 export const demoRouter = Router();
 
@@ -78,4 +88,66 @@ demoRouter.post('/demo/simulate-traffic', async (req, res) => {
     },
   );
   res.json({ visitors, ...stats, elapsedMs, flushed: true });
+});
+
+const QUESTIONS = [
+  'Where is my invoice?',
+  'I forgot my password',
+  'What is my API rate limit?',
+  'How do I export a report to CSV?',
+  'I want to downgrade my plan',
+  'Hi, what can you help with?',
+];
+
+demoRouter.post('/demo/simulate-chats', async (req, res) => {
+  const body = (req.body ?? {}) as { conversations?: unknown; turns?: unknown; positiveConcise?: unknown; positiveFriendly?: unknown };
+  const conversations = Math.round(clamp(body.conversations, 1, 2000, 300));
+  const turns = Math.round(clamp(body.turns, 1, 5, 2));
+  const positive = { concise: clamp(body.positiveConcise, 0, 1, 0.55), friendly: clamp(body.positiveFriendly, 0, 1, 0.8) };
+  const startedAt = Date.now();
+
+  type Stat = { variationKey: string; model: string; style: string; turns: number; positive: number; negative: number; totalMs: number; totalTokens: number };
+  const byVariation = new Map<string, Stat>();
+  let disabled = 0;
+
+  for (let i = 0; i < conversations; i++) {
+    const visitor = randomVisitor();
+    for (let t = 0; t < turns; t++) {
+      const question = QUESTIONS[(i + t) % QUESTIONS.length];
+      const turn = await runSupportTurn(visitor, question, { simulate: true, seed: `${i}:${t}` });
+      if (!turn.enabled || !turn.tracker || !turn.metrics || !turn.style) {
+        disabled += 1;
+        continue;
+      }
+      const key = turn.served.variationKey || 'fallback';
+      const stat =
+        byVariation.get(key) ??
+        { variationKey: key, model: turn.served.model?.name ?? '?', style: turn.style, turns: 0, positive: 0, negative: 0, totalMs: 0, totalTokens: 0 };
+      stat.turns += 1;
+      stat.totalMs += turn.metrics.durationMs;
+      stat.totalTokens += turn.metrics.tokens.total;
+      // Feedback on the same tracker (same runId) - in the browser it arrives later via the resumption token.
+      const thumbsUp = Math.random() < positive[turn.style];
+      turn.tracker.trackFeedback({ kind: thumbsUp ? LDFeedbackKind.Positive : LDFeedbackKind.Negative });
+      if (thumbsUp) stat.positive += 1;
+      else stat.negative += 1;
+      byVariation.set(key, stat);
+    }
+  }
+  await ldClient.flush();
+
+  const stats = [...byVariation.values()].map((s) => ({
+    ...s,
+    positiveRate: s.turns ? s.positive / s.turns : 0,
+    avgMs: s.turns ? Math.round(s.totalMs / s.turns) : 0,
+    avgTokens: s.turns ? Math.round(s.totalTokens / s.turns) : 0,
+  }));
+  const elapsedMs = Date.now() - startedAt;
+  logFlagEvent(
+    `Simulated ${conversations} support conversations (${turns} turns each): ` +
+      stats.map((s) => `${s.variationKey} ${Math.round(s.positiveRate * 100)}% positive over ${s.turns} turns`).join(', '),
+    'info',
+    { flag: AI_CONFIG_KEY, event: 'chat_simulation', value: disabled === 0, conversations, turns, disabled },
+  );
+  res.json({ conversations, turns, disabled, byVariation: stats, elapsedMs, flushed: true });
 });

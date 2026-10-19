@@ -132,3 +132,67 @@ export async function simulateTrafficOnApi(body: {
   if (!res.ok) throw new Error(`POST /api/demo/simulate-traffic failed: ${res.status}`);
   return (await res.json()) as ApiSimulationResult;
 }
+
+/** Part 4: the support assistant (LaunchDarkly AI Config `support-assistant`). */
+export interface ServedAiConfig {
+  key: string;
+  enabled: boolean;
+  variationKey: string;
+  version: number;
+  model: { name: string; parameters?: Record<string, unknown> } | null;
+  provider: string | null;
+  messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
+  /** True when the SDK used the in-code default (config missing or LaunchDarkly unreachable). */
+  fallback: boolean;
+}
+
+export interface ChatTurnResult {
+  enabled: boolean;
+  served: ServedAiConfig;
+  reply?: string;
+  style?: 'concise' | 'friendly';
+  metrics?: { durationMs: number; tokens: { input: number; output: number; total: number } };
+  resumptionToken?: string;
+  generatedAt: string;
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status}`);
+  return (await res.json()) as T;
+}
+
+export const sendChat = (context: unknown, message: string) => post<ChatTurnResult>('/api/chat', { context, message });
+
+export const sendChatFeedback = (context: unknown, resumptionToken: string, kind: 'positive' | 'negative') =>
+  post<{ ok: boolean }>('/api/chat/feedback', { context, resumptionToken, kind });
+
+export interface ChatConfigEvaluation {
+  served: ServedAiConfig;
+  reason: EvaluationReason;
+  evaluatedAt: string;
+}
+
+export const evaluateChatConfig = (context: unknown) => post<ChatConfigEvaluation>('/api/chat/evaluate', { context });
+
+export interface ChatSimulationResult {
+  conversations: number;
+  turns: number;
+  disabled: number;
+  byVariation: {
+    variationKey: string;
+    model: string;
+    style: string;
+    turns: number;
+    positive: number;
+    negative: number;
+    positiveRate: number;
+    avgMs: number;
+    avgTokens: number;
+  }[];
+  elapsedMs: number;
+  flushed: boolean;
+}
+
+export const simulateChatsOnApi = (body: { conversations: number; turns: number; positiveConcise: number; positiveFriendly: number }) =>
+  post<ChatSimulationResult>('/api/demo/simulate-chats', body);
