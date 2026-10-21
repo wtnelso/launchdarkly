@@ -302,26 +302,32 @@ Experimentation is included in trials and Enterprise plans. Labels below are fro
 yours may differ slightly.
 
 1. **Create the metric.** Left nav **Metrics** → **Create metric**.
-   - **Event kind:** *Custom*. **Event key:** `hero-cta-click` (must match the code exactly).
-   - **Name:** `Hero CTA click`. **Description:** `Visitor clicked the landing-page hero's primary button.`
-   - **What do you want to measure?** *Conversion*, **binary** (whether the context converted).
-   - **Randomization unit:** *user* (the context kind the experiment buckets on; each persona and
-     synthetic visitor has a `user` key). **Success criteria:** *Higher is better*.
-   - **Create metric**.
+   - **Define metric using:** *LaunchDarkly hosted*. **Event kind:** *Custom*. **Event key:**
+     `hero-cta-click` (must match the code exactly; *Health check waiting* just means no event has
+     arrived yet - click a hero CTA in the app once and *Preview event data* fills in).
+   - **Metric definition:** **Occurrence (Percent)** - whether a unit sent the event at least once.
+     That is the binary conversion rate. (*Count* would reward repeat clickers; *Sum*/*Average* are
+     for numeric metrics.)
+   - **Metric name:** `Hero CTA click` (key auto-fills). Unit *user*, *Higher is better* if asked.
+   - **Create**. The metric page should read "Percent of user units that sent the event. Higher
+     is better", type *Binary*.
 2. *(Optional)* A second metric: event key `hero-cta-time-to-click`, **Numeric**, **Average**,
    unit `ms`, *Lower is better*. Name it `Hero CTA time to click`.
-3. **Create the experiment.** Open the `landing-hero-v-2` flag → **Experimentation** tab →
-   **Create experiment** (or left nav **Experiments** → **Create experiment** and pick the flag).
-   - **Name:** `Landing hero v2 vs classic`. **Hypothesis:** `A personalized hero gets more
-     primary-CTA clicks than the classic one.` **Type:** *Feature experiment*.
-   - **Randomization unit:** *user*. **Metrics:** primary `Hero CTA click` (add `Hero CTA time to
-     click` as a secondary metric if you created it).
-   - **Flag:** `landing-hero-v-2`. **Audience / targeting rule:** the **default rule** (the
-     individual targets and the two Part 2 rules stay above it and are *not* part of the
-     experiment). **Control:** `false` (classic hero).
-   - **Variations served:** **50% / 50%**. Leave the attribution window at its default.
-   - **Save** and then **Start experiment** (*Start iteration*). The flag's Targeting tab now shows
-     the default rule as an experiment rollout.
+3. **Create the experiment.** Left nav **Experimentation → Experiments → Create experiment**
+   (the flag page itself has no Experimentation tab in current accounts).
+   - **Name:** `Landing hero v2 vs classic`. **Hypothesis:** `If we show the personalized hero,
+     more visitors click the primary CTA because the copy speaks to their plan and company.`
+     **Create experiment** opens the design builder.
+   - **Assignment method:** *LaunchDarkly flag or config* → **Flag or config:** `Landing hero v2`.
+     Leave *Run as A/A test* unchecked. **Randomize by:** *user*.
+   - **Audience allocation:** variation served to contexts outside the experiment `false`; audience
+     100 %; **Control** `false` (classic hero); **split 50 / 50**. The experiment runs on the
+     flag's **default rule**: the individual target and the two Part 2 rules stay above it and are
+     *not* part of the experiment.
+   - **Metrics:** source *LaunchDarkly hosted* → add `Hero CTA click` → **Set as primary** (add
+     `Hero CTA time to click` as a secondary if you created it). Keep Bayesian.
+   - **Save**, then **Start experiment**. The flag's Targeting tab now shows the default rule as an
+     experiment rollout, and `curl .../sdk/latest-all` shows `fallthrough.rollout.kind = "experiment"`.
 4. **Nothing else to configure in the app.** Both SDKs already send the events; the Node SDK uses
    the SDK key and the React SDK the client-side ID.
 
@@ -348,7 +354,7 @@ yours may differ slightly.
    the server evaluates the flag locally for each visitor and `track()`s the conversions, so 500
    visitors take well under a second. Use it when you want significance quickly. Both runs also
    write a summary line to the flag's **Monitoring → Logs**.
-5. **Read the results** in LaunchDarkly: flag → **Experimentation** → the experiment → **Results**.
+5. **Read the results** in LaunchDarkly: **Experimentation → Experiments** → the experiment → **Results**.
    Data lands within a few minutes. For each variation you get **exposures**, **conversions** and
    the **conversion rate**; LaunchDarkly's Bayesian analysis adds the **probability to beat
    control** and a **credible interval** for the relative difference. With ~250 exposures per

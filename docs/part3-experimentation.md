@@ -15,7 +15,7 @@ page, unchanged; the Admin drawer is new.
 | --- | --- | --- |
 | Same flag as the targeting example | `client/src/scenarios/index.ts` (Part 3 reuses `Part2View`) | The hero is still gated by `useBoolVariation('landing-hero-v-2')`; the experiment lives on that flag's default rule, under the Part 2 targets and rules. |
 | A metric | `client/src/ld/metrics.ts` → `trackHeroCtaClick()`; wired in `Part2View.tsx` (`useHeroCta`) | Clicking either hero's primary button calls `client.track('hero-cta-click', …)` (conversion) and `client.track('hero-cta-time-to-click', …, ms)` (numeric). The button acknowledges the click; nothing else on the page changes. |
-| An experiment | LaunchDarkly → flag → **Experimentation** | 50/50 on the default rule, metric *Hero CTA click*, randomization unit *user*. |
+| An experiment | LaunchDarkly → **Experimentation → Experiments** | 50/50 on the flag's default rule, metric *Hero CTA click*, randomization unit *user*. |
 | Enough data to read results | Admin drawer → **Simulate traffic** (`client/src/scenarios/part3/simulateTraffic.ts`) and **Bulk via API** (`server/src/routes/demo.ts`) | Synthetic visitors with random keys: `identify()` → evaluation (the exposure) → a conversion with a different probability per variation. A few hundred visitors are enough for a clear *probability to beat control*. |
 
 ## Suggested 3-minute demo

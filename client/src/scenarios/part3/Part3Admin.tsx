@@ -77,11 +77,11 @@ export function Part3Admin() {
         <ol className="small steps">
           <li>
             <strong>Metrics</strong> → <em>Hero CTA click</em>: event key <code>{METRIC_EVENTS.HERO_CTA_CLICK}</code>,
-            conversion (binary), randomization unit <em>user</em>.
+            Occurrence (Percent) of <em>user</em> units, higher is better.
           </li>
           <li>
-            <strong>Flag → Experimentation</strong> (or <strong>Experiments</strong>): the running experiment on this flag's
-            default rule, 50/50.
+            <strong>Experimentation → Experiments:</strong> the running experiment on this flag's default rule, 50/50 (the
+            flag's Targeting tab shows the default rule as an experiment rollout).
           </li>
           <li>
             <strong>Results tab:</strong> exposures per variation, conversion rate, the <em>probability to beat control</em>
