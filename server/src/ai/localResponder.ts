@@ -41,7 +41,9 @@ type Topic = 'billing' | 'login' | 'limits' | 'export' | 'cancel' | 'general';
 const FAST_MODEL = /mini|haiku|flash|nano|small|lite|instant|8b|3b/i;
 
 export function styleOf(systemPrompt: string): Style {
-  if (/warm|thorough|numbered steps|greet|friendly/i.test(systemPrompt)) return 'friendly';
+  // "concise" wins so a prompt like "be concise, no greetings" isn't read as friendly.
+  if (/\bconcise\b|short sentences|\bterse\b|\bbrief\b/i.test(systemPrompt)) return 'concise';
+  if (/\bwarm\b|\bthorough\b|numbered steps|\bgreet\b|\bfriendly\b/i.test(systemPrompt)) return 'friendly';
   return 'concise';
 }
 
