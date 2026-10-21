@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { inert } from '../part2/Part2View';
 import { applyPersonaContext, usePersona } from '../part2/personaStore';
 import { rateMessage, resetChat, sendMessage, useChat, type ChatMessage } from './chatStore';
 
@@ -37,13 +38,14 @@ export function Part4View() {
 
   return (
     <div className="landing help">
+      {/* Decorative navigation: the hash is reserved for the part picker, so these go nowhere. */}
       <nav className="landing-nav" aria-label="Site">
         <span className="brand-sm">ABC Analytics</span>
         <div className="landing-links">
-          <a href="#part-4">Help Center</a>
-          <a href="#part-4">Guides</a>
-          <a href="#part-4">API reference</a>
-          <a href="#part-4">Status</a>
+          <a href="#" onClick={inert}>Help Center</a>
+          <a href="#" onClick={inert}>Guides</a>
+          <a href="#" onClick={inert}>API reference</a>
+          <a href="#" onClick={inert}>Status</a>
         </div>
         <button className="btn btn-outline btn-sm">Sign in</button>
       </nav>

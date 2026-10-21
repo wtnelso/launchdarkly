@@ -1,5 +1,5 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { FLAG_KEYS } from '../../ld/flags';
 import { trackHeroCtaClick } from '../../ld/metrics';
 import { applyPersonaContext, usePersona } from './personaStore';
@@ -17,13 +17,14 @@ export function Part2View() {
 
   return (
     <div className="landing">
+      {/* Decorative navigation: the hash is reserved for the part picker, so these go nowhere. */}
       <nav className="landing-nav" aria-label="Site">
         <span className="brand-sm">ABC Analytics</span>
         <div className="landing-links">
-          <a href="#features">Product</a>
-          <a href="#features">Customers</a>
-          <a href="#features">Pricing</a>
-          <a href="#features">Docs</a>
+          <a href="#" onClick={inert}>Product</a>
+          <a href="#" onClick={inert}>Customers</a>
+          <a href="#" onClick={inert}>Pricing</a>
+          <a href="#" onClick={inert}>Docs</a>
         </div>
         <button className="btn btn-outline btn-sm">Sign in</button>
       </nav>
@@ -192,4 +193,9 @@ function HeroArt({ label, highlight = false }: { label: string; highlight?: bool
       </div>
     </div>
   );
+}
+
+/** Keep the demo's decorative links from touching the URL hash (which selects the exercise part). */
+export function inert(e: MouseEvent): void {
+  e.preventDefault();
 }

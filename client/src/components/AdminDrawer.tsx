@@ -36,13 +36,23 @@ export function AdminDrawer({ open, onOpenChange, status, children }: Props) {
     writeDrawerOpen(open);
   }, [open]);
 
+  // Close on Esc or on a click anywhere outside the drawer. The Admin toggle
+  // button is excluded so clicking it toggles once instead of close-then-reopen.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onOpenChange(false);
     };
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target instanceof Element ? e.target : null;
+      if (target && !target.closest('.drawer, .drawer-toggle')) onOpenChange(false);
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
   }, [open, onOpenChange]);
 
   return (
