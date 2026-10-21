@@ -1,4 +1,5 @@
 import { FeatureGate } from '../../components/FeatureGate';
+import { SiteFooter, SiteNav } from '../../components/SiteNav';
 import { demoContext } from '../../ld/provider';
 import { useIdentify } from '../../ld/useIdentify';
 
@@ -6,5 +7,11 @@ import { useIdentify } from '../../ld/useIdentify';
 export function Part1View() {
   // Part 1 is served to everyone; make sure a persona chosen in Part 2 doesn't linger.
   useIdentify(demoContext);
-  return <FeatureGate />;
+  return (
+    <div className="landing">
+      <SiteNav active="Reports" />
+      <FeatureGate />
+      <SiteFooter />
+    </div>
+  );
 }
