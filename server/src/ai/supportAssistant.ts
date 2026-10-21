@@ -8,7 +8,15 @@
  * config's Monitoring tab and any experiment on its variations.
  */
 import type { LDContext } from '@launchdarkly/node-server-sdk';
-import { initAi, LDFeedbackKind, type LDAICompletionConfigDefault, type LDAIConfigTracker, type LDMessage } from '@launchdarkly/server-sdk-ai';
+import {
+  initAi,
+  LDFeedbackKind,
+  type LDAIAgentConfigDefault,
+  type LDAICompletionConfig,
+  type LDAICompletionConfigDefault,
+  type LDAIConfigTracker,
+  type LDMessage,
+} from '@launchdarkly/server-sdk-ai';
 import { FLAG_KEYS, ldClient } from '../ld.js';
 import { respond, type Style } from './localResponder.js';
 
@@ -33,6 +41,19 @@ export const SUPPORT_ASSISTANT_DEFAULT: LDAICompletionConfigDefault = {
         'You are the {{product}} support assistant for {{company}}. The customer is {{customerName}} on the {{plan}} plan. Be concise: answer in at most two short sentences.',
     },
   ],
+};
+
+/**
+ * The same default for an *agent*-mode config: LaunchDarkly's "Agent" config
+ * type carries a single `instructions` string instead of `messages`. The app
+ * accepts either type (see servedConfigFor) so the PM can pick whichever the
+ * UI offers; the instructions become the system prompt.
+ */
+export const SUPPORT_ASSISTANT_AGENT_DEFAULT: LDAIAgentConfigDefault = {
+  enabled: SUPPORT_ASSISTANT_DEFAULT.enabled,
+  model: SUPPORT_ASSISTANT_DEFAULT.model,
+  provider: SUPPORT_ASSISTANT_DEFAULT.provider,
+  instructions: SUPPORT_ASSISTANT_DEFAULT.messages?.[0]?.content,
 };
 
 export interface AssistantVariables {
@@ -78,9 +99,35 @@ export interface SupportTurn {
   tracker?: LDAIConfigTracker;
 }
 
-/** Evaluate the AI Config for a visitor (no generation). */
-export async function servedConfigFor(context: LDContext): Promise<{ served: ServedConfig; config: Awaited<ReturnType<typeof aiClient.completionConfig>> }> {
-  const config = await aiClient.completionConfig(AI_CONFIG_KEY, context, SUPPORT_ASSISTANT_DEFAULT, { ...variablesFor(context) });
+/**
+ * Evaluate the AI Config for a visitor (no generation).
+ *
+ * LaunchDarkly AI Configs come in modes. A *completion* config holds
+ * `messages`; an *agent* config holds `instructions`. The SDK refuses a
+ * mode mismatch, so peek at the served variation's `_ldMeta.mode` and call
+ * the matching method; an agent's instructions are presented as the system
+ * message so the rest of the app (and the responder) see one shape.
+ */
+export async function servedConfigFor(context: LDContext): Promise<{ served: ServedConfig; config: LDAICompletionConfig }> {
+  const variables = { ...variablesFor(context) };
+  const raw = (await ldClient.jsonVariation(AI_CONFIG_KEY, context, null)) as { _ldMeta?: { mode?: string } } | null;
+  const mode = raw?._ldMeta?.mode ?? 'completion';
+
+  let config: LDAICompletionConfig;
+  if (mode === 'agent') {
+    const agent = await aiClient.agentConfig(AI_CONFIG_KEY, context, SUPPORT_ASSISTANT_AGENT_DEFAULT, variables);
+    config = {
+      key: agent.key,
+      enabled: agent.enabled,
+      model: agent.model,
+      provider: agent.provider,
+      messages: agent.instructions ? [{ role: 'system', content: agent.instructions }] : [],
+      createTracker: agent.createTracker,
+    };
+  } else {
+    config = await aiClient.completionConfig(AI_CONFIG_KEY, context, SUPPORT_ASSISTANT_DEFAULT, variables);
+  }
+
   const track = config.createTracker().getTrackData();
   return {
     config,

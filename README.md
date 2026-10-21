@@ -415,7 +415,9 @@ now call the feature AgentControl). Labels may differ slightly between accounts.
 
 1. **Create the config.** **Agents → Configs → Create config**. Type **Completion**. Name
    `Support assistant`; click **Edit key** and set the key to **`support-assistant`** (keys can't be
-   changed later). **Create**.
+   changed later). **Create**. (An **Agent**-type config works too: the app detects the mode and
+   reads its single *Instructions* / *Agent task* field as the system prompt. Put the same prompt
+   text there.)
 2. **Variation 1 – "Concise (fast model)".** On the **Variations** tab the first variation is
    waiting: name it `Concise (fast model)`. **Select a model** → pick a *small* model from the list
    (any name containing `mini`, `haiku`, `flash`, `nano`, `small` or `lite`; if none fits, **+ Add a
