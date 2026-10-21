@@ -24,6 +24,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** Header slot, e.g. the LaunchDarkly connection pill. */
   status?: ReactNode;
+  /** Pinned above the scrolling body, e.g. the exercise part picker. */
+  top?: ReactNode;
   children: ReactNode;
 }
 
@@ -31,7 +33,7 @@ interface Props {
  * Collapsible admin sidebar. It overlays the right edge of the page so
  * opening it never reflows the customer-facing view.
  */
-export function AdminDrawer({ open, onOpenChange, status, children }: Props) {
+export function AdminDrawer({ open, onOpenChange, status, top, children }: Props) {
   useEffect(() => {
     writeDrawerOpen(open);
   }, [open]);
@@ -66,6 +68,7 @@ export function AdminDrawer({ open, onOpenChange, status, children }: Props) {
           Close ✕
         </button>
       </div>
+      {top && <div className="drawer-top">{top}</div>}
       <div className="drawer-body">{children}</div>
     </aside>
   );

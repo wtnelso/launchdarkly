@@ -107,8 +107,12 @@ p { margin: 6px 0; line-height: 1.45; }
 @media (max-width: 600px) { .bars li { grid-template-columns: 70px 1fr 110px; } }
 
 /* Top bar controls */
-.drawer-toggle { display: inline-flex; align-items: center; gap: 8px; }
-.drawer-toggle.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.hamburger { position: relative; z-index: 60; /* stays clickable above the open drawer */ width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--accent-soft); color: var(--text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.hamburger:hover { background: rgba(109, 78, 242, 0.18); }
+.hamburger[aria-expanded='true'] { background: var(--accent); color: #fff; }
+.hamburger:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hamburger-badge { position: absolute; right: -4px; bottom: -4px; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: #fff; border: 2px solid var(--bg); display: inline-flex; align-items: center; justify-content: center; }
+.hamburger-badge.off { background: #c3c8d3; }
 .picker { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 0.85rem; cursor: pointer; }
 .picker:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
@@ -117,6 +121,9 @@ p { margin: 6px 0; line-height: 1.45; }
 .drawer.open { transform: translateX(0); }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .drawer-head h2 { font-size: 1.05rem; margin: 0; }
+.drawer-top { padding: 4px 18px 12px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.drawer-top .field { margin-top: 6px; }
+.drawer-top .picker { width: 100%; }
 .drawer-body { padding: 16px 18px 32px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }

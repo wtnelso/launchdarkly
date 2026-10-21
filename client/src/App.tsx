@@ -28,27 +28,21 @@ export function App() {
 
             {/* Admin tooling lives in the drawer so the customer view stays clean. */}
             <button
-              className={`btn btn-outline btn-sm drawer-toggle ${drawerOpen ? 'active' : ''}`}
+              className="hamburger drawer-toggle"
               onClick={() => setDrawerOpen((o) => !o)}
               aria-expanded={drawerOpen}
-              title={`LaunchDarkly ${init.status}`}
+              aria-label={drawerOpen ? 'Close admin tools' : 'Open admin tools'}
+              title={`Admin tools · LaunchDarkly ${init.status}`}
             >
-              <span className={`dot ${connected ? 'on' : 'off'}`} /> Admin
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+              </svg>
+              <span className={`hamburger-badge ${connected ? '' : 'off'}`} aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="10" height="10">
+                  <path d="M12 2l8 3v6c0 5-3.5 9.5-8 11-4.5-1.5-8-6-8-11V5l8-3z" fill="currentColor" />
+                </svg>
+              </span>
             </button>
-
-            {/* Exercise part picker: each part has its own end-user view and admin panel. */}
-            <select
-              className="picker"
-              value={scenario.id}
-              onChange={(e) => selectScenario(e.target.value)}
-              aria-label="Exercise part"
-            >
-              {SCENARIOS.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
           </div>
         </header>
 
@@ -68,7 +62,24 @@ export function App() {
           )}
         </main>
 
-        <AdminDrawer open={drawerOpen} onOpenChange={setDrawerOpen} status={<InitBadge status={init.status} />}>
+        <AdminDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          status={<InitBadge status={init.status} />}
+          top={
+            // Exercise part picker: each part has its own end-user view and admin panel.
+            <label className="field small">
+              <span className="muted">Exercise part</span>
+              <select className="picker" value={scenario.id} onChange={(e) => selectScenario(e.target.value)} aria-label="Exercise part">
+                {SCENARIOS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          }
+        >
           <scenario.Admin />
         </AdminDrawer>
       </div>
