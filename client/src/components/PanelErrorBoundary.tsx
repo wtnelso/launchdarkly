@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { reportError, type ReportErrorResponse } from '../api';
 import { FLAG_KEYS } from '../ld/flags';
 import { trackInsightsCrash } from '../ld/metrics';
 import { logFlagEvent, recordFlagError } from '../ld/telemetry';
@@ -10,50 +9,25 @@ interface Props {
 
 interface State {
   error: Error | null;
-  report: ReportErrorResponse | null;
 }
 
 /**
  * Catches a crash inside the Insights dashboard so the rest of the page
- * keeps working, then tells the server about it (POST /api/report-error).
+ * keeps working, and tells LaunchDarkly about it two ways:
  *
- * If the server has a LaunchDarkly flag trigger configured it fires it, the
- * flag turns OFF, and the parent <FeatureGate> swaps back to the usage table
- * automatically. If not, the card tells the operator how to remediate by hand.
- *
- * It also sends the `insights-dashboard-crash` metric event, which is what a
- * LaunchDarkly *guarded rollout* on the flag watches: with enough traffic,
- * LaunchDarkly detects the regression and rolls back by itself, no trigger.
+ *  - `recordFlagError` / `logFlagEvent`: the error (with session replay) and a
+ *    log line under the flag's Monitoring tab, so an operator can see it.
+ *  - `trackInsightsCrash`: the `insights-dashboard-crash` metric event. A
+ *    *guarded rollout* on the flag watches that metric for both variations and
+ *    rolls the flag off on its own when the new dashboard regresses. That is
+ *    the remediation path: LaunchDarkly decides, no webhook in our code.
  *
  * Because <FeatureGate> only renders this boundary while the flag is ON, a
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
- * reset needed.
- *
- * The crash is also recorded with LaunchDarkly Observability (see
- * recordFlagError) so it shows up under the flag's Monitoring > Errors view
- * with the session replay attached.
+ * reset needed. A human can still short-circuit with `npm run remediate`.
  */
-/**
- * React (in development, and under StrictMode) can replay a render that threw,
- * which would call componentDidCatch twice for one crash and fire the kill
- * switch twice. Share one in-flight report per error message for a few
- * seconds so each incident is reported - and the trigger fired - exactly once.
- */
-const REPORT_DEDUPE_MS = 5_000;
-let lastReport: { message: string; at: number; promise: Promise<ReportErrorResponse> } | null = null;
-
-function reportOnce(message: string): Promise<ReportErrorResponse> {
-  const now = Date.now();
-  if (lastReport && lastReport.message === message && now - lastReport.at < REPORT_DEDUPE_MS) {
-    return lastReport.promise;
-  }
-  const promise = reportError(FLAG_KEYS.INSIGHTS_DASHBOARD, message);
-  lastReport = { message, at: now, promise };
-  return promise;
-}
-
 export class PanelErrorBoundary extends Component<Props, State> {
-  state: State = { error: null, report: null };
+  state: State = { error: null };
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { error };
@@ -73,23 +47,10 @@ export class PanelErrorBoundary extends Component<Props, State> {
     });
     // Metric event for the guarded rollout (LaunchDarkly's own remediation path).
     trackInsightsCrash(error.message);
-    void reportOnce(error.message).then(
-      (report) => {
-        this.setState({ report });
-        logFlagEvent(
-          report.remediated
-            ? `Kill switch fired: flag trigger answered HTTP ${report.triggerStatus}`
-            : `Crash reported, no automatic kill switch: ${report.reason ?? 'unknown'}`,
-          'warn',
-          { event: report.remediated ? 'kill_switch' : 'kill_switch_unavailable', value: true },
-        );
-      },
-      () => this.setState({ report: { remediated: false, reason: 'Could not reach the API' } }),
-    );
   }
 
   render(): ReactNode {
-    const { error, report } = this.state;
+    const { error } = this.state;
     if (!error) return this.props.children;
 
     return (
@@ -99,35 +60,16 @@ export class PanelErrorBoundary extends Component<Props, State> {
           <span className="tag danger">Incident</span>
         </div>
         <pre className="stack">{error.message}</pre>
-
-        {!report && <p className="muted">Reporting to the analytics API…</p>}
-
-        {report?.remediated && (
-          <p className="ok">
-            Automatic kill switch fired the LaunchDarkly flag trigger (HTTP {report.triggerStatus}). The flag is
-            turning off - this page will roll back to the usage table in a moment, with no reload.
-          </p>
-        )}
-
-        {report && !report.remediated && (
-          <div>
-            <p>
-              <strong>No automatic trigger configured.</strong> {report.reason}
-            </p>
-            <p>Remediate manually - any one of these rolls every user back instantly:</p>
-            <ol>
-              <li>
-                Run <code>npm run remediate</code> (fires the flag trigger with curl)
-              </li>
-              <li>
-                Run <code>npm run remediate:api</code> (REST API fallback)
-              </li>
-              <li>
-                Toggle <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> off in the LaunchDarkly UI
-              </li>
-            </ol>
-          </div>
-        )}
+        <p>
+          The crash was recorded in LaunchDarkly Observability and sent as the <code>insights-dashboard-crash</code> metric.
+          With a guarded rollout on <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code>, LaunchDarkly compares the crash rate of this
+          dashboard with the usage table and turns the flag off by itself once the regression is clear - this page then rolls
+          back with no reload.
+        </p>
+        <p className="muted">
+          To roll back right now instead: run <code>npm run remediate</code> (fires the flag trigger with curl) or toggle the
+          flag off in LaunchDarkly.
+        </p>
       </section>
     );
   }

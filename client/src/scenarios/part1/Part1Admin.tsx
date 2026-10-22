@@ -44,8 +44,8 @@ export function Part1Admin() {
             <strong>Rollback:</strong> turn it <em>off</em>
           </li>
           <li>
-            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code>, or inject a bug below and let
-            the kill switch do it
+            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code> (flag trigger), or inject a bug
+            below and let the guarded rollout roll it back
           </li>
         </ol>
       </div>
@@ -59,8 +59,8 @@ export function Part1Admin() {
         </div>
         <p className="small muted">
           Simulate a bad upstream deploy: the API starts returning a malformed Insights payload (<code>series: null</code>
-          ). The new dashboard crashes on it, the error boundary reports it to LaunchDarkly Observability and to the API,
-          and the API fires the flag trigger. Rolling back also retires the bad data.
+          ). The new dashboard crashes on it, the error boundary records it in LaunchDarkly Observability and sends the
+          crash metric the guarded rollout watches. Rolling back also retires the bad data.
         </p>
         <button className="btn btn-danger" disabled={!flagOn || chaos || busy} onClick={injectBadData}>
           Inject bad report data

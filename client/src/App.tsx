@@ -53,13 +53,8 @@ export function App() {
         )}
 
         <main className="content">
-          {init.status === 'initializing' ? (
-            <section className="panel">
-              <p className="muted">Connecting to LaunchDarkly…</p>
-            </section>
-          ) : (
-            <scenario.View />
-          )}
+          {/* Rendered immediately: flags fall back to their defaults until the SDK is ready, then re-render. */}
+          <scenario.View />
         </main>
 
         <AdminDrawer

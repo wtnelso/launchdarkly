@@ -6,10 +6,8 @@
  *   GET  /api/health        - liveness + SDK initialization status
  *   GET  /api/reports/usage - flag-dependent usage report (legacy table vs Insights)
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
- *   POST /api/report-error  - optional automatic kill switch via flag trigger
  *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
  *   POST /api/demo/simulate-traffic - Part 3: bulk synthetic experiment traffic (exposures + conversions)
- *   POST /api/landing/evaluate - Part 2: evaluate landing-hero-v-2 for a visitor context
  *   POST /api/chat, /api/chat/feedback, /api/chat/evaluate - Part 4: support assistant driven by an AI Config
  *   POST /api/demo/simulate-chats - Part 4: synthetic conversations with feedback for the experiment
  */
@@ -20,9 +18,7 @@ import { ldClient, waitForLaunchDarkly } from './ld.js';
 import { chatRouter } from './routes/chat.js';
 import { demoRouter } from './routes/demo.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
-import { landingRouter } from './routes/landing.js';
 import { reportsRouter } from './routes/reports.js';
-import { remediateRouter } from './routes/remediate.js';
 
 // API_PORT (not the generic PORT) so hosting tools that inject PORT can't collide with Vite.
 const port = Number(process.env.API_PORT ?? 3001);
@@ -36,9 +32,7 @@ app.get('/api/health', (_req, res) => {
 });
 app.use('/api', reportsRouter);
 app.use('/api', flagEventsRouter);
-app.use('/api', remediateRouter);
 app.use('/api', demoRouter);
-app.use('/api', landingRouter);
 app.use('/api', chatRouter);
 
 async function main(): Promise<void> {

@@ -15,23 +15,23 @@ Select **Part 2 · Target** in the top-right picker.
 | Context with attributes | `client/src/scenarios/part2/personas.ts` (`contextFor`) | Multi-context `user` (key, name, email, country, role, betaTester) + `organization` (key, name, plan, industry, employees). The Admin drawer's persona picker calls `identify()`. |
 | Individual targeting | LaunchDarkly → flag → Targeting → Individual targets | `alice-chen` gets v2 even though no rule matches her; reason `TARGET_MATCH`. |
 | Rule-based targeting | Rules on the same flag | Rule 1 `user.betaTester is true` serves Bruno; Rule 2 `organization.plan is enterprise` serves Carla; reasons `RULE_MATCH` with the rule number. The anonymous visitor falls through to the default (`FALLTHROUGH`). |
-| Both tiers agree | `server/src/routes/landing.ts` (`boolVariationDetail`) | The Evaluation card shows the browser's and the API's value **and reason** for the same context. |
+| Evaluation reason | `client/src/scenarios/part2/Part2Admin.tsx` (`useBoolVariationDetail`, client created with `withReasons: true`) | The Evaluation card shows the value **and why**: individual target, rule number, or default rule. |
 
 ## Data flow
 
 ```
- pick persona ─▶ contextFor(persona) ─┬─ identify(context) ─▶ Browser SDK ─▶ LaunchDarkly evaluates ─▶ { value, reason } ─▶ hero re-renders
-                                      └─ POST /api/landing/evaluate ─▶ Node SDK evaluates locally (streamed rules) ─▶ { value, reason }
+ pick persona ─▶ contextFor(persona) ─▶ identify(context) ─▶ Browser SDK ─▶ LaunchDarkly evaluates ─▶ { value, reason } ─▶ hero re-renders
 ```
 
 The app owns the context (who the visitor is); LaunchDarkly owns the decision. The browser SDK sends
-the context up and gets evaluated values back; the Node SDK holds the rules and evaluates locally.
-The **Context payload** card in the drawer shows the exact JSON both paths use.
+the context up and gets evaluated values back; it never sees the rules. Part 2 needs no server: the
+API is only used by Part 1's flag-dependent report data and Part 4's AI Config. The **Context
+payload** card in the drawer shows the exact JSON sent.
 
 ## Suggested 3-minute demo
 
-1. Visitor = **Anonymous**: "This is what 40,000 people a day see. Classic hero. The API agrees:
-   default rule."
+1. Visitor = **Anonymous**: "This is what 40,000 people a day see. Classic hero, via the default
+   rule."
 2. Switch to **Alice**: "Alice is on our team. She's individually targeted, so she sees v2 before
    anyone else. Reason: individual target. No deploy, no reload."
 3. Switch to **Bruno**: "Free plan, but he opted into the beta. Rule 1 matches on a *user* attribute.
@@ -45,8 +45,8 @@ The **Context payload** card in the drawer shows the exact JSON both paths use.
 
 - **Multi-context** rather than stuffing company data into the user: rules can target the
   organization (plan, size, industry) independently of the person, which is how B2B rollouts work.
-- **Reasons on both tiers.** `variationDetail` exposes *why* a value was served; showing it next to
-  the value makes targeting explainable to a stakeholder in one glance.
+- **Reasons, not just values.** `useBoolVariationDetail` exposes *why* a value was served; showing it
+  next to the value makes targeting explainable to a stakeholder in one glance.
 - **Personas live in the Admin drawer**, so the landing page itself stays exactly what a customer
   would see.
 - **Attribute discovery.** LaunchDarkly only offers an attribute in the rule builder after an SDK has
@@ -56,7 +56,7 @@ The **Context payload** card in the drawer shows the exact JSON both paths use.
 
 _Add before submitting:_
 
-- [ ] Anonymous visitor: classic hero, Evaluation card showing Default rule on both tiers
+- [ ] Anonymous visitor: classic hero, Evaluation card showing Default rule
 - [ ] Alice: v2 hero, reason Individual target
 - [ ] Bruno: v2 hero with Beta badge and EU note, reason Rule 1 (user.betaTester)
 - [ ] Carla: v2 hero, reason Rule 2 (organization.plan)

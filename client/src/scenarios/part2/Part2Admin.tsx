@@ -1,6 +1,5 @@
 import { useBoolVariationDetail } from '@launchdarkly/react-sdk';
-import { useEffect, useState } from 'react';
-import { evaluateLanding, type EvaluationReason, type LandingEvaluation } from '../../api';
+import type { EvaluationReason } from '../../api';
 import { FlagActivityLog } from '../../components/FlagActivityLog';
 import { FLAG_KEYS } from '../../ld/flags';
 import { PERSONAS, contextFor } from './personas';
@@ -11,30 +10,6 @@ export function Part2Admin() {
   const persona = usePersona();
   const identifying = useIdentifying();
   const detail = useBoolVariationDetail(FLAG_KEYS.LANDING_HERO_V2, false);
-  const [server, setServer] = useState<LandingEvaluation | null>(null);
-  const [serverError, setServerError] = useState<string | null>(null);
-
-  // Ask the API to evaluate the same context; re-run when the persona or the
-  // client-side result changes (e.g. a rule was edited in LaunchDarkly).
-  useEffect(() => {
-    let cancelled = false;
-    evaluateLanding(contextFor(persona)).then(
-      (res) => {
-        if (!cancelled) {
-          setServer(res);
-          setServerError(null);
-        }
-      },
-      (err: unknown) => {
-        if (!cancelled) setServerError(err instanceof Error ? err.message : String(err));
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [persona, detail.value, detail.reason?.kind, detail.reason?.ruleIndex]);
-
-  const agree = server ? server.value === detail.value : null;
 
   return (
     <>
@@ -78,29 +53,20 @@ export function Part2Admin() {
         </p>
         <dl className="reasons">
           <div>
-            <dt>Browser (React SDK)</dt>
+            <dt>Value</dt>
             <dd>
-              <strong>{String(detail.value)}</strong> · {describeReason(detail.reason)}
+              <strong>{String(detail.value)}</strong>
             </dd>
           </div>
           <div>
-            <dt>API (Node SDK)</dt>
-            <dd>
-              {server && (
-                <>
-                  <strong>{String(server.value)}</strong> · {describeReason(server.reason)}
-                </>
-              )}
-              {!server && !serverError && <span className="muted">evaluating…</span>}
-              {serverError && <span className="error">{serverError}</span>}
-            </dd>
+            <dt>Reason</dt>
+            <dd>{describeReason(detail.reason)}</dd>
           </div>
         </dl>
-        {agree !== null && (
-          <p className={`small ${agree ? 'ok' : 'error'}`}>
-            {agree ? 'Both tiers agree.' : 'Tiers disagree - one of them has not received the latest rules yet.'}
-          </p>
-        )}
+        <p className="small muted">
+          The React SDK sent this persona's context to LaunchDarkly with <code>identify()</code> and got back the evaluated
+          value plus the reason (<code>withReasons: true</code>). No server involved.
+        </p>
         <p className="small muted">
           Expected for this persona: <strong>{persona.expectedV2 ? 'Hero v2' : 'Classic hero'}</strong> via {persona.servedBy}.
         </p>
@@ -112,15 +78,10 @@ export function Part2Admin() {
           <span className="pill">{persona.organization ? 'multi-context' : 'single context'}</span>
         </div>
         <p className="small muted">
-          Exactly what <code>identify()</code> sends to LaunchDarkly from the browser, and what the Evaluation card POSTs to{' '}
-          <code>/api/landing/evaluate</code> for the Node SDK. Targeting rules match on these attributes.
+          Exactly what <code>identify()</code> sends to LaunchDarkly from the browser. Targeting rules match on these
+          attributes; the app decides who the visitor is, LaunchDarkly decides what they get.
         </p>
         <pre className="prompt">{JSON.stringify(contextFor(persona), null, 2)}</pre>
-        <p className="small muted">
-          Browser: the SDK sends this context to LaunchDarkly and receives the already-evaluated flag values. API: the Node SDK
-          evaluates the same context locally against its streamed copy of the rules. Neither tier changes the context; the
-          app decides who the visitor is.
-        </p>
       </div>
 
       <div className="card">

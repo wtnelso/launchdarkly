@@ -11,7 +11,8 @@ usage table today, KPI tiles, trend charts and a team breakdown behind the flag.
 | --- | --- | --- |
 | Flag around a new feature | `client/src/components/FeatureGate.tsx` (`useBoolVariation`) and `server/src/routes/reports.ts` (`boolVariation`) | Flag on → Insights dashboard + new API payload. Flag off → usage table + legacy payload. |
 | Listener / instant switch | `client/src/components/FlagActivityLog.tsx` (`client.on('change:insights-dashboard')`), `server/src/routes/flagEvents.ts` (`ldClient.on('update:insights-dashboard')` → SSE) | Toggle in LaunchDarkly; both log cards in the Admin drawer print a timestamped line and the panel swaps with no reload. |
-| Remediate with a trigger | `scripts/remediate.sh` (manual curl), `server/src/routes/remediate.ts` (automatic on crash), `server/src/routes/demo.ts` (injects the bad data) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event, Observability → Errors shows the crash with a session replay. |
+| Remediate with a trigger | `scripts/remediate.sh` (manual curl to the flag trigger) | Flag flips off in LaunchDarkly, UI rolls back, History tab shows the trigger event. |
+| Remediate automatically | `client/src/components/PanelErrorBoundary.tsx` (`trackInsightsCrash`), `server/src/routes/demo.ts` (injects the bad data; simulates visitors), a **guarded rollout** on the flag in LaunchDarkly | The crash is recorded in Observability (session replay) and as the `insights-dashboard-crash` metric; LaunchDarkly rolls the flag back when the new variation regresses. |
 
 ## Layout
 
@@ -29,25 +30,25 @@ Open the Admin drawer first so the audience can watch the logs.
 2. Turn it **on**: "That's a production release. No deploy. Every connected browser got it in under
    a second — and the API switched too, so the data matches the UI."
 3. Turn it **off**: "And that's the rollback. Same speed, same blast radius: zero."
-4. Turn it **on**, click **Inject bad report data** under Demo controls, wait for the dashboard's
-   10-second refresh: "A bad upstream deploy just shipped. The dashboard pulled the broken payload and
-   crashed. The error boundary contained it, LaunchDarkly Observability recorded it with a session
-   replay, the app reported it, and the trigger turned the feature off for everyone before a human
-   picked up the pager." Then show `npm run remediate` as the manual equivalent an
-   on-call engineer or a monitoring tool would use.
+4. With the flag running as a **guarded rollout**, click **Inject bad report data** under Demo
+   controls and **Simulate 300 visitors** under Guarded rollout: "A bad upstream deploy just
+   shipped. Everyone on the new dashboard is crashing; the usage table is fine. LaunchDarkly is
+   comparing the two." Within a minute or two the flag turns off by itself: "No pager, no webhook -
+   LaunchDarkly saw the regression and rolled back." Show `npm run remediate` as the manual
+   equivalent an on-call engineer would use to skip the wait.
 5. Open the flag's **Monitoring → Logs**: "Here is the whole incident as LaunchDarkly saw it, browser
-   and API side by side: release, bad data, crash, kill switch, rollback." Then **History**: "Every
-   change is attributed and auditable."
+   and API side by side: release, bad data, crash, rollback." Then **History**: "Every change is
+   attributed and auditable - this one to the guarded rollout."
 
 ## Guarded rollout (LaunchDarkly remediates by itself)
 
-The trigger path is our code deciding "a crash means roll back". The **Guarded rollout** card in the
-Admin drawer shows the alternative: the error boundary sends an `insights-dashboard-crash` metric
-event, the card can send it for hundreds of synthetic visitors (`POST /api/demo/simulate-reports`),
-and a guarded rollout on the flag compares the crash rate of the new dashboard with the usage table
-and turns the flag off on its own when it regresses. Demo: simulate with bad data off (healthy),
-inject bad data, simulate again (100% crash rate on `true`), watch LaunchDarkly roll back without a
-trigger or a human. Setup is in the README under *Remediate with a guarded rollout*.
+The app contains no code that turns the flag off. The error boundary sends an
+`insights-dashboard-crash` metric event, the **Guarded rollout** card can send it for hundreds of
+synthetic visitors (`POST /api/demo/simulate-reports`), and a guarded rollout on the flag compares
+the crash rate of the new dashboard with the usage table and turns the flag off on its own when it
+regresses. Demo: simulate with bad data off (healthy), inject bad data, simulate again (100% crash
+rate on `true`), watch LaunchDarkly roll back. Setup is in the README under *Remediate with a
+guarded rollout*. The flag trigger stays as the manual, instant path (`npm run remediate`).
 
 ## Design decisions worth calling out
 
@@ -58,8 +59,9 @@ trigger or a human. Setup is in the README under *Remediate with a guarded rollo
   place.
 - **Singleton server client.** `server/src/ld.ts` creates one `LDClient` for the process and shuts
   it down cleanly (`flush` then `close`) on SIGINT/SIGTERM.
-- **Error boundary + trigger** turns "we can roll back fast" into "we can roll back automatically".
-  The same trigger URL works from curl, an APM alert, or application code.
+- **Error boundary + metric, not error boundary + webhook.** The boundary reports the crash to
+  LaunchDarkly as a metric and lets the guarded rollout decide; the app never hard-codes "a crash
+  means roll back". The trigger URL stays for humans and monitoring tools.
 - **The bug is real data handling, not a planted throw.** Chaos mode makes the API return
   `series: null`; the v2 dashboard assumes the series is always there. Rolling the flag back also
   retires the bad data, so re-releasing renders healthy.
@@ -78,4 +80,4 @@ _Add screenshots here before submitting:_
 - [ ] LaunchDarkly Observability → Errors showing the recorded error and its session replay
 - [ ] Flag → Monitoring → Logs showing the incident timeline from both tiers
 - [ ] Terminal output of `npm run remediate` (HTTP 200)
-- [ ] LaunchDarkly flag History tab showing the trigger entry
+- [ ] LaunchDarkly flag History tab showing the guarded rollout's automatic rollback (and a trigger entry from `npm run remediate`)
