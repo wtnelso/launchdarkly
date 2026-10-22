@@ -135,10 +135,8 @@ on <http://localhost:5173> (Vite dev server with hot reload) in one terminal. Th
 Stop both with Ctrl+C. A production-style run is `npm run build`, then `npm start -w server` and
 `npm run preview -w client`.
 
-- The **☰** button (top right) opens the Admin drawer. Its header shows the LaunchDarkly connection
-  status; it should read **connected**. The **Exercise part** dropdown at the top of the drawer
-  switches between Parts 1–4; the choice is kept in the URL hash (`#part-1` … `#part-4`).
-- Each part's demo controls and flag logs are in the same drawer.
+The **☰** button (top right) opens the Admin drawer. Its header shows the LaunchDarkly connection
+status, which should read **connected**.
 
 | Command | What it does |
 | --- | --- |
@@ -152,6 +150,26 @@ Stop both with Ctrl+C. A production-style run is `npm run build`, then `npm star
 Quick checks after starting: the Admin drawer says **connected**; toggling `insights-dashboard`
 in LaunchDarkly swaps Part 1's page with no reload; Part 4's drawer shows the served variation
 (not *Fallback*) once `support-assistant` exists.
+
+## Switching between parts of the exercise
+
+All four parts run in the same app. To switch:
+
+1. Click the **☰** button in the top-right corner to open the Admin drawer.
+2. Use the **Exercise part** dropdown at the top of the drawer.
+
+The page changes to that part's end-user view and the drawer below the dropdown changes to that
+part's controls (flag logs, demo buttons, persona picker, simulators). The selection is stored in
+the URL hash, so these links open a part directly:
+
+| Part | URL | End-user view | LaunchDarkly object |
+| --- | --- | --- | --- |
+| Part 1 · Release & Remediate | <http://localhost:5173/#part-1> | Reports page: usage table or Insights dashboard | flag `insights-dashboard` |
+| Part 2 · Target | <http://localhost:5173/#part-2> | Landing page with the targeted hero | flag `landing-hero-v-2` |
+| Part 3 · Experiment | <http://localhost:5173/#part-3> | Same landing page; experiment controls in the drawer | metric `hero-cta-click` + experiment |
+| Part 4 · AI Config | <http://localhost:5173/#part-4> | Help Center with the support assistant | AI Config `support-assistant` |
+
+Click anywhere outside the drawer, press Esc, or use its Close button to close it.
 
 ## Where keys live in the code
 
