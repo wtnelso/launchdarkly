@@ -44,6 +44,18 @@ export function Part2Admin() {
 
       <div className="card">
         <div className="card-head">
+          <h3>Context payload</h3>
+          <span className="pill">{persona.organization ? 'multi-context' : 'single context'}</span>
+        </div>
+        <p className="small muted">
+          Exactly what <code>identify()</code> sends to LaunchDarkly from the browser. Targeting rules match on these
+          attributes; the app decides who the visitor is, LaunchDarkly decides what they get.
+        </p>
+        <pre className="prompt">{JSON.stringify(contextFor(persona), null, 2)}</pre>
+      </div>
+
+      <div className="card">
+        <div className="card-head">
           <h3>Evaluation</h3>
           <span className={`pill ${detail.value ? 'on' : 'off'}`}>{detail.value ? 'Hero v2' : 'Classic hero'}</span>
         </div>
@@ -70,18 +82,6 @@ export function Part2Admin() {
         <p className="small muted">
           Expected for this persona: <strong>{persona.expectedV2 ? 'Hero v2' : 'Classic hero'}</strong> via {persona.servedBy}.
         </p>
-      </div>
-
-      <div className="card">
-        <div className="card-head">
-          <h3>Context payload</h3>
-          <span className="pill">{persona.organization ? 'multi-context' : 'single context'}</span>
-        </div>
-        <p className="small muted">
-          Exactly what <code>identify()</code> sends to LaunchDarkly from the browser. Targeting rules match on these
-          attributes; the app decides who the visitor is, LaunchDarkly decides what they get.
-        </p>
-        <pre className="prompt">{JSON.stringify(contextFor(persona), null, 2)}</pre>
       </div>
 
       <div className="card">
