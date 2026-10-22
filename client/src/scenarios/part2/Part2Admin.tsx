@@ -5,7 +5,6 @@ import { FLAG_KEYS } from '../../ld/flags';
 import { PERSONAS, contextFor } from './personas';
 import { setPersona, useIdentifying, usePersona } from './personaStore';
 
-/** Part 2 admin tooling: who you are, what LaunchDarkly decided, and why. */
 export function Part2Admin() {
   const persona = usePersona();
   const identifying = useIdentifying();

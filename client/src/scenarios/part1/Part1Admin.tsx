@@ -7,14 +7,8 @@ import { FLAG_KEYS } from '../../ld/flags';
 import { METRIC_EVENTS } from '../../ld/metrics';
 import { logFlagEvent } from '../../ld/telemetry';
 
-/**
- * Part 1 admin tooling. Lives in the collapsible admin drawer so none of it
- * affects the customer-facing view.
- */
 export function Part1Admin() {
   const flagOn = useBoolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, false);
-  // Mirrors the API's chaos state; kept current by the server-sent events the
-  // <ServerStatus> card already subscribes to.
   const [chaos, setChaosState] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -76,13 +70,6 @@ export function Part1Admin() {
   );
 }
 
-/**
- * The other remediation path: a LaunchDarkly *guarded rollout*. Instead of our
- * code firing a trigger when the dashboard crashes, LaunchDarkly ramps the new
- * variation up gradually, watches the `insights-dashboard-crash` metric for
- * both arms, and rolls back on its own when the new one regresses. It needs
- * traffic in both arms to reach a verdict, which is what the simulator is for.
- */
 function GuardedRollout({ chaos }: { chaos: boolean }) {
   const [visitors, setVisitors] = useState(300);
   const [busy, setBusy] = useState(false);

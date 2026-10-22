@@ -7,12 +7,6 @@ import { PERSONAS } from '../part2/personas';
 import { setPersona, useIdentifying, usePersona } from '../part2/personaStore';
 import { cancelSimulation, DEFAULT_SIM, runSimulation, useSimulation, type VariationStats } from './simulateTraffic';
 
-/**
- * Part 3 (extra credit) admin tooling: run an A/B experiment on the Part 2
- * hero. The landing page is unchanged; what changes is that LaunchDarkly now
- * splits the *default rule* 50/50 and measures the `hero-cta-click` metric for
- * each variation.
- */
 export function Part3Admin() {
   const persona = usePersona();
   const identifying = useIdentifying();

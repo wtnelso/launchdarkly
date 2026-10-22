@@ -5,11 +5,6 @@ import { PERSONAS, contextFor } from '../part2/personas';
 import { setPersona, useIdentifying, usePersona } from '../part2/personaStore';
 import { useChat } from './chatStore';
 
-/**
- * Part 4 (extra credit) admin tooling: which AI Config variation (model +
- * prompt) is answering the current visitor and why, the metrics of each
- * turn, and a simulator that fills the experiment on the config's variations.
- */
 export function Part4Admin() {
   const persona = usePersona();
   const identifying = useIdentifying();
@@ -17,8 +12,6 @@ export function Part4Admin() {
   const [evaluation, setEvaluation] = useState<ChatConfigEvaluation | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Re-evaluate the config for the current persona after every persona change and every reply
-  // (a reply may have been produced by a variation that was just edited in LaunchDarkly).
   useEffect(() => {
     let cancelled = false;
     evaluateChatConfig(contextFor(persona)).then(

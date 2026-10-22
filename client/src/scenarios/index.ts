@@ -7,27 +7,17 @@ import { Part3Admin } from './part3/Part3Admin';
 import { Part4Admin } from './part4/Part4Admin';
 import { Part4View } from './part4/Part4View';
 
-/**
- * Each part of the exercise is a "scenario": an end-user view (what ABC
- * Company's customers see) and an admin panel (flag logs and demo controls,
- * shown in the collapsible drawer). The picker in the top bar switches
- * between them.
- */
 export interface Scenario {
   id: string;
   label: string;
-  /** Customer-facing UI for this part. */
   View: ComponentType;
-  /** Admin / demo tooling for this part, rendered inside the admin drawer. */
   Admin: ComponentType;
 }
 
 export const SCENARIOS: Scenario[] = [
   { id: 'part-1', label: 'Part 1 · Release & Remediate', View: Part1View, Admin: Part1Admin },
   { id: 'part-2', label: 'Part 2 · Target', View: Part2View, Admin: Part2Admin },
-  // Extra credit: same landing page and flag; the admin panel drives an experiment.
   { id: 'part-3', label: 'Part 3 · Experiment', View: Part2View, Admin: Part3Admin },
-  // Extra credit: a support chatbot whose model and prompt live in a LaunchDarkly AI Config.
   { id: 'part-4', label: 'Part 4 · AI Config', View: Part4View, Admin: Part4Admin },
 ];
 
@@ -36,7 +26,6 @@ function fromHash(): Scenario {
   return SCENARIOS.find((s) => s.id === id) ?? SCENARIOS[0];
 }
 
-/** The selected scenario, kept in the URL hash (#part-1) so it is linkable and survives reloads. */
 export function useScenario(): [Scenario, (id: string) => void] {
   const [scenario, setScenario] = useState<Scenario>(fromHash);
 

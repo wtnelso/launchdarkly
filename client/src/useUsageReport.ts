@@ -2,18 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchUsageReport, type UsageReport } from './api';
 
 interface Options {
-  /** Re-fetch on this interval (ms). Omit for fetch-on-mount only. */
   refreshMs?: number;
 }
 
-/**
- * Loads the usage report from the server for the variant this view expects.
- *
- * The client and server SDKs each hold their own streaming connection to
- * LaunchDarkly, so after a toggle they may learn about the change a few
- * hundred milliseconds apart. If the server's answer doesn't match the view
- * we're rendering yet, we retry briefly instead of showing mismatched data.
- */
 export function useUsageReport<V extends UsageReport['variant']>(expectedVariant: V, { refreshMs }: Options = {}) {
   const [data, setData] = useState<Extract<UsageReport, { variant: V }> | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +17,7 @@ export function useUsageReport<V extends UsageReport['variant']>(expectedVariant
     const attempt = async (): Promise<void> => {
       try {
         const res = await fetchUsageReport();
-        if (myGen !== generation.current) return; // superseded by a newer load or unmount
+        if (myGen !== generation.current) return;
         if (res.variant !== expectedVariant) {
           if (attempts < 5) {
             attempts += 1;
@@ -48,7 +39,7 @@ export function useUsageReport<V extends UsageReport['variant']>(expectedVariant
     void load();
     const timer = refreshMs ? setInterval(() => void load(), refreshMs) : undefined;
     return () => {
-      generation.current += 1; // cancel in-flight work
+      generation.current += 1;
       if (timer) clearInterval(timer);
     };
   }, [load, refreshMs]);

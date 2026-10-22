@@ -1,33 +1,3 @@
-/**
- * GET  /api/demo/chaos  -> { enabled }
- * POST /api/demo/chaos  { enabled: boolean }
- *
- * Driven by the Admin drawer's "Inject bad report data" control. Only the
- * Insights (flag ON) variant is affected; the legacy usage table never is.
- *
- * POST /api/demo/simulate-traffic { visitors, convClassic, convV2 }
- *
- * Part 3 (Experimentation): bulk synthetic traffic from the server SDK. The
- * Node SDK evaluates flags locally, so thousands of visitors take well under a
- * second; the exposures and conversions are batched and flushed to LaunchDarkly.
- *
- * POST /api/demo/simulate-reports { visitors }
- *
- * Part 1 (guarded rollout): synthetic visitors open the Reports page. Each one
- * is evaluated for `insights-dashboard` (the exposure); those served the new
- * dashboard while chaos mode is on hit the same `series: null` bug and send
- * the `insights-dashboard-crash` metric event, which is what a guarded
- * rollout watches. Healthy traffic lets the rollout advance; one run with bad
- * data injected and LaunchDarkly rolls the flag back on its own.
- *
- * POST /api/demo/simulate-chats { conversations, turns, positiveConcise, positiveFriendly }
- *
- * Part 4 (AI Config): synthetic support conversations. Each visitor gets the
- * AI Config evaluated (its own experiment bucket), a generated reply with
- * duration/token metrics, and thumbs up/down with a probability that depends
- * on the *style* of the served prompt - so an experiment on the config's
- * variations has a satisfaction difference to find.
- */
 import { Router } from 'express';
 import { demoState } from '../demo.js';
 import { AI_CONFIG_KEY, runSupportTurn } from '../ai/supportAssistant.js';
@@ -67,13 +37,10 @@ demoRouter.post('/demo/simulate-traffic', async (req, res) => {
 
   for (let i = 0; i < visitors; i++) {
     const visitor = randomVisitor();
-    // The exposure. With an experiment running on the default rule, the SDK's
-    // feature event carries the variation the visitor was bucketed into.
     const v2 = await ldClient.boolVariation(FLAG_KEYS.LANDING_HERO_V2, visitor, false);
     const hero = v2 ? 'v2' : 'classic';
     stats[hero].exposures += 1;
     if (Math.random() < (v2 ? convV2 : convClassic)) {
-      // The conversion, for the same context so LaunchDarkly can attribute it.
       ldClient.track(METRIC_EVENTS.HERO_CTA_CLICK, visitor, { hero, cta: 'primary', synthetic: true });
       ldClient.track(METRIC_EVENTS.HERO_CTA_TIME_TO_CLICK, visitor, { hero, synthetic: true }, randomTimeToClick(hero));
       stats[hero].conversions += 1;
@@ -135,7 +102,6 @@ demoRouter.post('/demo/simulate-chats', async (req, res) => {
       stat.turns += 1;
       stat.totalMs += turn.metrics.durationMs;
       stat.totalTokens += turn.metrics.tokens.total;
-      // Feedback on the same tracker (same runId) - in the browser it arrives later via the resumption token.
       const thumbsUp = Math.random() < positive[turn.style];
       turn.tracker.trackFeedback({ kind: thumbsUp ? LDFeedbackKind.Positive : LDFeedbackKind.Negative });
       if (thumbsUp) stat.positive += 1;
@@ -169,16 +135,12 @@ demoRouter.post('/demo/simulate-reports', async (req, res) => {
 
   for (let i = 0; i < visitors; i++) {
     const visitor = randomVisitor();
-    // The exposure: which report this visitor gets. During a guarded rollout the
-    // SDK's feature event carries the variation LaunchDarkly bucketed them into.
     const insights = await ldClient.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, visitor, false);
     if (!insights) {
       stats.legacy.views += 1;
       continue;
     }
     stats.insights.views += 1;
-    // Same failure as the real page: the Insights payload is malformed while chaos is on,
-    // so the dashboard crashes for everyone served the new variation.
     if (demoState.chaos) {
       ldClient.track(METRIC_EVENTS.INSIGHTS_CRASH, visitor, { message: "Cannot read properties of null (reading 'map')", synthetic: true });
       stats.insights.crashes += 1;

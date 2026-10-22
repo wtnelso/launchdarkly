@@ -1,22 +1,9 @@
-/**
- * GET /api/reports/usage
- *
- * Returns the usage report the dashboard renders. The *shape* of the response
- * depends on the same feature flag the React app evaluates, so the demo can
- * show the client and server agreeing in real time:
- *
- *   flag OFF -> "legacy" variant: the monthly usage table ABC Company has shipped for years
- *   flag ON  -> "new" variant: the Insights dashboard (KPIs with deltas, 30-day trend, team breakdown)
- *
- * Data is mocked but deterministic: the same numbers every call, so the demo
- * never surprises you.
- */
 import { Router } from 'express';
 import { demoState } from '../demo.js';
 import { FLAG_KEYS, isNewReportingOn } from '../ld.js';
 
 export interface MonthRow {
-  month: string; // YYYY-MM
+  month: string;
   activeUsers: number;
   apiCalls: number;
   storageGb: number;
@@ -27,12 +14,11 @@ export interface Kpi {
   label: string;
   value: number;
   unit: '' | 'GB' | 'ms';
-  /** Percent change vs the previous 30 days. */
   deltaPct: number;
 }
 
 export interface SeriesPoint {
-  date: string; // YYYY-MM-DD
+  date: string;
   activeUsers: number;
   apiCalls: number;
 }
@@ -43,7 +29,6 @@ export interface TeamUsage {
   sharePct: number;
 }
 
-/** Small seeded PRNG so "random-looking" data is identical on every request. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -55,7 +40,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-const ANCHOR = new Date('2026-10-19T00:00:00Z'); // keep the demo's "today" stable
+const ANCHOR = new Date('2026-10-19T00:00:00Z');
 
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -69,7 +54,7 @@ function buildDailySeries(days: number): SeriesPoint[] {
     d.setUTCDate(d.getUTCDate() - i);
     const dow = d.getUTCDay();
     const weekend = dow === 0 || dow === 6 ? 0.55 : 1;
-    const trend = 1 + (days - 1 - i) * 0.012; // gentle growth over the window
+    const trend = 1 + (days - 1 - i) * 0.012;
     out.push({
       date: isoDate(d),
       activeUsers: Math.round(1180 * weekend * trend + rand() * 90),
@@ -131,8 +116,6 @@ const byTeam: TeamUsage[] = byTeamRaw.map((t) => ({ ...t, sharePct: Math.round((
 export const reportsRouter = Router();
 
 reportsRouter.get('/reports/usage', async (_req, res) => {
-  // Server-side evaluation. The SDK answers from its in-memory flag store,
-  // so this is a local lookup - no network call per request.
   const newReporting = await isNewReportingOn();
 
   if (newReporting) {
@@ -142,9 +125,6 @@ reportsRouter.get('/reports/usage', async (_req, res) => {
       generatedAt: new Date().toISOString(),
       period: { from: last30[0].date, to: last30[last30.length - 1].date },
       kpis,
-      // Chaos mode (Admin drawer -> "Inject bad report data"): the time series
-      // comes back null, as if an upstream job failed. The new dashboard
-      // assumes it is always present, so it crashes - a realistic regression.
       series: demoState.chaos ? null : last30,
       byTeam,
     });

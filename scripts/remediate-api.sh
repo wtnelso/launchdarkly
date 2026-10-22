@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
-#
-# Remediate (fallback): turn the `insights-dashboard` flag OFF with the
-# LaunchDarkly REST API instead of a flag trigger.
-#
-# Use this if your LaunchDarkly plan does not include flag triggers. It sends a
-# *semantic patch* with the `turnFlagOff` instruction, which is exactly what
-# the "Off" toggle in the UI does. The effect on connected SDKs is identical.
-#
 # Usage:   npm run remediate:api      (from the repo root)
-#
 # Requires in server/.env:
 #   LD_API_TOKEN     - Organization settings > Authorization > Create token (Writer role)
 #   LD_PROJECT_KEY   - e.g. abc-company   (Projects > your project > key)
@@ -20,7 +11,6 @@ ENV_FILE="$ROOT/server/.env"
 FLAG_KEY="${LD_FLAG_KEY:-insights-dashboard}"
 
 if [[ -f "$ENV_FILE" ]]; then
-  # shellcheck disable=SC1090
   set -a; source "$ENV_FILE"; set +a
 fi
 
@@ -33,8 +23,6 @@ done
 
 echo "Turning OFF flag '$FLAG_KEY' in project '$LD_PROJECT_KEY', environment '$LD_ENV_KEY' via REST API ..."
 
-# Note the Content-Type: the "domain-model=launchdarkly.semanticpatch" parameter
-# is required, otherwise the API treats the body as a JSON Patch and returns 400.
 HTTP_STATUS=$(curl -sS -o /tmp/ld-api-response.json -w '%{http_code}' \
   -X PATCH "https://app.launchdarkly.com/api/v2/flags/$LD_PROJECT_KEY/$FLAG_KEY" \
   -H "Authorization: $LD_API_TOKEN" \

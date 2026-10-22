@@ -46,11 +46,6 @@ export function useIdentifying(): boolean {
   );
 }
 
-/**
- * Tell LaunchDarkly who the visitor is. identify() swaps the context, fetches
- * the flag values for it, and every variation hook re-renders - so the hero
- * changes for the new persona with no reload.
- */
 export async function applyPersonaContext(): Promise<void> {
   identifying = true;
   notify();
@@ -67,7 +62,7 @@ export async function setPersona(id: string): Promise<void> {
   try {
     localStorage.setItem(STORAGE_KEY, current.id);
   } catch {
-    /* ignore */
+    return;
   }
   notify();
   await applyPersonaContext();

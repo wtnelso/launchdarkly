@@ -6,12 +6,7 @@ import { trackHeroCtaClick } from '../../ld/metrics';
 import { applyPersonaContext, usePersona } from './personaStore';
 import type { Persona } from './personas';
 
-/**
- * Part 2 end-user view: ABC Company's marketing landing page. Only the hero is
- * behind the flag; everything else is shared by both variations.
- */
 export function Part2View() {
-  // Re-apply the chosen persona whenever this scenario is shown.
   useEffect(() => {
     void applyPersonaContext();
   }, []);
@@ -53,25 +48,12 @@ export function Part2View() {
   );
 }
 
-/**
- * The feature flag in action: `landing-hero-v-2` decides which hero this visitor
- * sees. Unlike Part 1, the flag is not simply on or off - LaunchDarkly
- * evaluates it against the visitor's context (user + organization attributes),
- * so Alice can get the new hero while an anonymous visitor still gets the
- * classic one.
- */
 function HeroGate() {
   const persona = usePersona();
   const v2 = useBoolVariation(FLAG_KEYS.LANDING_HERO_V2, false);
   return v2 ? <HeroPersonalized persona={persona} /> : <HeroClassic />;
 }
 
-/**
- * The primary call to action is the experiment's conversion. Clicking it sends
- * the `hero-cta-click` metric event (plus time-to-click) for the current
- * context; LaunchDarkly attributes it to the variation this visitor saw.
- * The button acknowledges the click briefly so the page still feels real.
- */
 function useHeroCta(hero: 'v2' | 'classic', label: string) {
   const shownAt = useRef(performance.now());
   const [done, setDone] = useState(false);

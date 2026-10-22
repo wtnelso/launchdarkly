@@ -26,7 +26,6 @@ export function App() {
               Signed in as <strong>{contextName}</strong>
             </span>
 
-            {/* Admin tooling lives in the drawer so the customer view stays clean. */}
             <button
               className="hamburger drawer-toggle"
               onClick={() => setDrawerOpen((o) => !o)}
@@ -53,7 +52,6 @@ export function App() {
         )}
 
         <main className="content">
-          {/* Rendered immediately: flags fall back to their defaults until the SDK is ready, then re-render. */}
           <scenario.View />
         </main>
 
@@ -62,7 +60,6 @@ export function App() {
           onOpenChange={setDrawerOpen}
           status={<InitBadge status={init.status} />}
           top={
-            // Exercise part picker: each part has its own end-user view and admin panel.
             <label className="field small">
               <span className="muted">Exercise part</span>
               <select className="picker" value={scenario.id} onChange={(e) => selectScenario(e.target.value)} aria-label="Exercise part">

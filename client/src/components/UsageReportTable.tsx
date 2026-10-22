@@ -1,10 +1,5 @@
 import { useUsageReport } from '../useUsageReport';
 
-/**
- * The usage report ABC Company has shipped for years: one row per month,
- * three numbers, an export button. This is what customers see when the
- * `insights-dashboard` flag is OFF (including after a rollback).
- */
 export function UsageReportTable() {
   const { data, error } = useUsageReport('legacy');
 

@@ -1,17 +1,11 @@
 import type { MouseEvent } from 'react';
 
-/** Keep the demo's decorative links from touching the URL hash (which selects the exercise part). */
 export function inert(e: MouseEvent): void {
   e.preventDefault();
 }
 
 const LINKS = ['Product', 'Reports', 'Customers', 'Pricing', 'Docs', 'Help Center'];
 
-/**
- * ABC Analytics' site navigation, shared by every exercise part so the pages
- * read as one product. The links are decorative: the hash is reserved for the
- * part picker, so they go nowhere. `active` highlights where the visitor is.
- */
 export function SiteNav({ active }: { active?: string }) {
   return (
     <nav className="landing-nav" aria-label="Site">

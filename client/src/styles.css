@@ -43,7 +43,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .layout { display: grid; grid-template-columns: 1fr; gap: 20px; margin-top: 22px; }
 .layout.single { max-width: 760px; }
 
-/* Panels (end-user view) */
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
 .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
 
@@ -67,7 +66,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .btn-sm { padding: 6px 10px; font-size: 0.85rem; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* Reports */
 .crumbs { margin: 0 0 2px; letter-spacing: 0.02em; }
 .panel.report h2 { font-size: 1.5rem; }
 .report-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
@@ -106,7 +104,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .bar-value { text-align: right; font-variant-numeric: tabular-nums; }
 @media (max-width: 600px) { .bars li { grid-template-columns: 70px 1fr 110px; } }
 
-/* Top bar controls */
 .hamburger { position: relative; width: 40px; height: 40px; border: 0; border-radius: 12px; background: var(--accent-soft); color: var(--text); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
 .hamburger:hover { background: rgba(109, 78, 242, 0.18); }
 .hamburger[aria-expanded='true'] { background: var(--accent); color: #fff; }
@@ -116,7 +113,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .picker { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 0.85rem; cursor: pointer; }
 .picker:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-/* Admin drawer: overlays the right edge, never reflows the page */
 .drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 400px; max-width: 100vw; background: var(--bg); border-left: 1px solid var(--border); box-shadow: -12px 0 32px rgba(17, 24, 39, 0.12); transform: translateX(100%); transition: transform 180ms ease; display: flex; flex-direction: column; z-index: 50; }
 .drawer.open { transform: translateX(0); }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; border-bottom: 1px solid var(--border); background: var(--surface); }
@@ -139,7 +135,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .pill.warn { color: var(--warn); border-color: rgba(180, 83, 9, 0.35); background: #fff7e6; }
 .head-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
 
-/* Part 2: landing page */
 .landing { display: flex; flex-direction: column; gap: 28px; }
 .landing-nav { display: flex; align-items: center; gap: 18px; padding: 6px 0; }
 .brand-sm { font-weight: 700; }
@@ -169,7 +164,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .landing-footer { text-align: center; padding: 12px 0 0; }
 @media (max-width: 800px) { .hero { grid-template-columns: 1fr; padding: 24px; } .hero-art { height: 140px; } .landing-links { display: none; } }
 
-/* Part 2: admin */
 .persona-grid { display: grid; gap: 8px; margin-top: 10px; }
 .persona { text-align: left; display: flex; flex-direction: column; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; color: var(--text); }
 .persona:hover { background: var(--surface-2); }
@@ -180,7 +174,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .reasons dt { color: var(--muted); }
 .reasons dd { margin: 0; }
 
-/* Part 3: experiment admin */
 .btn-primary.done { background: var(--ok); border-color: var(--ok); }
 .field { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
 .field input, .field select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 0.9rem; width: 100%; }
@@ -195,7 +188,6 @@ p { margin: 6px 0; line-height: 1.45; }
 .stats th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; border-top: 0; }
 .stats .num { text-align: right; font-variant-numeric: tabular-nums; }
 
-/* Part 4: help center + support assistant */
 .help-head h1 { font-size: 2rem; margin: 6px 0 8px; letter-spacing: -0.01em; }
 .chat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; max-width: 760px; }
 .chat-head { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }

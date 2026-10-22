@@ -6,16 +6,9 @@ export interface ServerEvent {
   value: boolean;
   at: string;
   reason: 'initial' | 'update';
-  /** Demo: the API is currently returning malformed Insights data. */
   chaos: boolean;
 }
 
-/**
- * Shows the *server-side* listener. The Express API subscribes to
- * `ldClient.on('update:insights-dashboard')` with the Node SDK and pushes each
- * change to the browser over Server-Sent Events. Seeing both logs move at the
- * same moment proves the whole stack flipped - not just the UI.
- */
 export function ServerStatus({ onEvent }: { onEvent?: (e: ServerEvent) => void }) {
   const [events, setEvents] = useState<ServerEvent[]>([]);
   const [connected, setConnected] = useState(false);

@@ -5,13 +5,6 @@ import { rateMessage, resetChat, sendMessage, useChat, type ChatMessage } from '
 
 const SUGGESTIONS = ['Where is my invoice?', 'I forgot my password', 'What is my API rate limit?', 'Export a report to CSV'];
 
-/**
- * Part 4 end-user view: ABC Analytics' Help Center with the support assistant.
- * The assistant's model and prompt come from the LaunchDarkly AI Config
- * `support-assistant`; the page only shows the reply and lets the customer
- * rate it. Everything about *which* configuration answered lives in the Admin
- * drawer.
- */
 export function Part4View() {
   const persona = usePersona();
   const chat = useChat();
@@ -22,7 +15,6 @@ export function Part4View() {
     void applyPersonaContext();
   }, []);
 
-  // A different visitor is a different conversation (and a different AI Config evaluation).
   useEffect(() => {
     resetChat();
   }, [persona.id]);

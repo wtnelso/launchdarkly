@@ -2,7 +2,6 @@ import { useEffect, type ReactNode } from 'react';
 
 const STORAGE_KEY = 'abc.adminDrawerOpen';
 
-/** Read the remembered open/closed state. Browser storage may be unavailable; default closed. */
 export function readDrawerOpen(): boolean {
   try {
     return localStorage.getItem(STORAGE_KEY) === 'true';
@@ -15,31 +14,23 @@ function writeDrawerOpen(open: boolean): void {
   try {
     localStorage.setItem(STORAGE_KEY, String(open));
   } catch {
-    /* ignore */
+    return;
   }
 }
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Header slot, e.g. the LaunchDarkly connection pill. */
   status?: ReactNode;
-  /** Pinned above the scrolling body, e.g. the exercise part picker. */
   top?: ReactNode;
   children: ReactNode;
 }
 
-/**
- * Collapsible admin sidebar. It overlays the right edge of the page so
- * opening it never reflows the customer-facing view.
- */
 export function AdminDrawer({ open, onOpenChange, status, top, children }: Props) {
   useEffect(() => {
     writeDrawerOpen(open);
   }, [open]);
 
-  // Close on Esc or on a click anywhere outside the drawer. The Admin toggle
-  // button is excluded so clicking it toggles once instead of close-then-reopen.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

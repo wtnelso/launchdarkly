@@ -6,24 +6,9 @@ import { logFlagEvent } from '../../ld/telemetry';
 import { applyPersonaContext } from '../part2/personaStore';
 import { randomTimeToClick, randomVisitor } from './syntheticVisitors';
 
-/**
- * Part 3: generate experiment traffic from this browser.
- *
- * For each synthetic visitor the loop does exactly what a real page view does:
- *   1. identify()        - LaunchDarkly evaluates the flag for the new context;
- *                          the SDK sends the *exposure* (a feature event).
- *   2. boolVariation()   - which hero that visitor got (and a second
- *                          evaluation event with the experiment's variation).
- *   3. maybe track()     - a conversion, with a different probability per
- *                          variation so the experiment has something to find.
- *
- * Events are flushed at the end and the real persona is restored.
- */
 export interface SimConfig {
   visitors: number;
-  /** Conversion probability (0..1) for visitors who saw the classic hero. */
   convClassic: number;
-  /** Conversion probability (0..1) for visitors who saw hero v2. */
   convV2: number;
 }
 
@@ -90,13 +75,11 @@ export async function runSimulation(config: SimConfig): Promise<void> {
     for (let i = 0; i < total; i++) {
       if (cancelled) break;
       const visitor = randomVisitor();
-      // sheddable: false - never drop a visitor because the next one arrived.
       const result = await client.identify(visitor, { sheddable: false });
       if (result.status !== 'completed') {
         set({ identifyErrors: state.identifyErrors + 1, done: i + 1 });
         continue;
       }
-      // The exposure: which variation LaunchDarkly bucketed this visitor into.
       const v2 = client.boolVariation(FLAG_KEYS.LANDING_HERO_V2, false);
       const hero = v2 ? 'v2' : 'classic';
       const stats = { ...state[hero], exposures: state[hero].exposures + 1 };
@@ -112,7 +95,6 @@ export async function runSimulation(config: SimConfig): Promise<void> {
     const summary =
       `Simulated ${state.done} visitors from the browser: classic ${state.classic.conversions}/${state.classic.exposures}, ` +
       `v2 ${state.v2.conversions}/${state.v2.exposures} conversions`;
-    // Restore the persona from the Admin drawer before logging so the log carries its context.
     await applyPersonaContext();
     logFlagEvent(summary, 'info', {
       flag: FLAG_KEYS.LANDING_HERO_V2,

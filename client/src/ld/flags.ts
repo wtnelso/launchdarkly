@@ -1,31 +1,11 @@
-/**
- * Feature flag keys used by the dashboard.
- *
- * Keep this in sync with server/src/ld.ts. If you recreate the flag in your own
- * LaunchDarkly project under a different key, change it here (and there).
- */
 export const FLAG_KEYS = {
-  /**
-   * REPLACE ME if you named your flag differently.
-   * Boolean flag. true = release the new Insights reporting dashboard,
-   * false = today's plain usage report table.
-   * Must have "Available on client-side SDKs" enabled in LaunchDarkly or the
-   * React SDK will never see it and will always return the default (false).
-   */
+  // REPLACE ME: Boolean flag to create in LaunchDarkly (Part 1). Must have "Available on client-side SDKs" enabled.
+  // Change the key here (and in server/src/ld.ts) if you named it differently.
   INSIGHTS_DASHBOARD: 'insights-dashboard',
-  /**
-   * REPLACE ME if you named your flag differently.
-   * Part 2: boolean flag around the landing-page hero. true = personalized hero
-   * (v2), false = classic hero. Targeted in LaunchDarkly by context attributes
-   * (individual targets + rules). Must be available to client-side SDKs.
-   */
+  // REPLACE ME: Boolean flag to create in LaunchDarkly (Parts 2 and 3). Must have "Available on client-side SDKs" enabled.
+  // Change the key here (and in server/src/ld.ts) if you named it differently.
   LANDING_HERO_V2: 'landing-hero-v-2',
-  /**
-   * REPLACE ME if you named your AI Config differently.
-   * Part 4: the AI Config holding the support assistant's model and prompt. It
-   * is evaluated on the server (AI Configs are server-side); the browser only
-   * displays what the API reports.
-   */
+  // REPLACE ME: AI Config key to create in LaunchDarkly (Part 4). Change the key here (and in server/src/ld.ts) if you named it differently.
   SUPPORT_ASSISTANT: 'support-assistant',
 } as const;
 

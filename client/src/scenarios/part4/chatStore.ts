@@ -3,13 +3,6 @@ import { sendChat, sendChatFeedback, type ServedAiConfig } from '../../api';
 import { contextFor } from '../part2/personas';
 import { getPersona } from '../part2/personaStore';
 
-/**
- * Part 4: the support conversation in this browser.
- *
- * Every assistant reply remembers which AI Config variation produced it and
- * the SDK's resumption token, so a thumbs up/down sent later can be attached
- * to the same generation (LaunchDarkly's "Satisfaction" metric).
- */
 export interface AssistantTurn {
   served: ServedAiConfig;
   style?: 'concise' | 'friendly';
@@ -30,10 +23,8 @@ export interface ChatMessage {
 export interface ChatState {
   messages: ChatMessage[];
   pending: boolean;
-  /** The AI Config is turned off for this visitor: the assistant is unavailable. */
   disabled: boolean;
   error: string | null;
-  /** Bumps on every reply so the Admin panel can refresh what it shows. */
   turns: number;
 }
 
@@ -101,7 +92,6 @@ export async function sendMessage(text: string): Promise<void> {
 export async function rateMessage(id: string, kind: 'positive' | 'negative'): Promise<void> {
   const msg = state.messages.find((m) => m.id === id);
   if (!msg?.turn?.resumptionToken || msg.turn.feedback) return;
-  // Optimistic: the buttons lock immediately (the tracker records feedback once per generation).
   set({ messages: state.messages.map((m) => (m.id === id && m.turn ? { ...m, turn: { ...m.turn, feedback: kind } } : m)) });
   try {
     await sendChatFeedback(contextFor(getPersona()), msg.turn.resumptionToken, kind);

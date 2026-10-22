@@ -1,17 +1,3 @@
-/**
- * POST /api/report-error
- *
- * The React error boundary around the Insights dashboard calls this when the
- * feature crashes in a user's browser. If a LaunchDarkly *flag trigger* URL
- * is configured, the server fires it, which turns the flag OFF in
- * LaunchDarkly. Every connected client then rolls back to the legacy panel
- * within about a second - an automatic kill switch.
- *
- * This is optional. The graded remediation path is the manual one:
- * `npm run remediate` (scripts/remediate.sh) which POSTs the same trigger
- * URL with curl. Both exist so the demo can show "a human on call" and
- * "an automated monitor" using the identical mechanism.
- */
 import { Router } from 'express';
 import { FLAG_KEYS, logFlagEvent } from '../ld.js';
 
@@ -30,7 +16,7 @@ remediateRouter.post('/report-error', async (req, res) => {
     return;
   }
 
-  // REPLACE ME (optional): LD_TRIGGER_URL lives in server/.env - see server/.env.example
+  // REPLACE ME: LD_TRIGGER_URL in server/.env is the flag trigger URL created on insights-dashboard (action: Turn flag off).
   const triggerUrl = process.env.LD_TRIGGER_URL;
   if (!triggerUrl) {
     logFlagEvent('No flag trigger configured (LD_TRIGGER_URL unset); manual remediation required', 'warn', {
@@ -45,8 +31,6 @@ remediateRouter.post('/report-error', async (req, res) => {
   }
 
   try {
-    // Generic triggers accept an optional JSON body. Both fields are optional
-    // and show up in the flag's change history as the reason for the change.
     const ldResponse = await fetch(triggerUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

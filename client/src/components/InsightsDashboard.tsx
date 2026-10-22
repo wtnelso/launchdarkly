@@ -2,20 +2,8 @@ import { useState } from 'react';
 import { formatCompact, type SeriesPoint } from '../api';
 import { useUsageReport } from '../useUsageReport';
 
-/**
- * The new Insights dashboard - the feature behind the `insights-dashboard`
- * flag. KPI tiles with month-over-month deltas, a 30-day trend for each
- * measure (small multiples, one axis each), and usage by team.
- */
 export function InsightsDashboard() {
-  // Like any live dashboard, this one refreshes itself. That is also how a
-  // bad upstream deploy reaches users: the next refresh pulls the bad payload.
   const { data, error, updatedAt, refresh } = useUsageReport('new', { refreshMs: 10_000 });
-
-  // The "v2 regression": this dashboard assumes `series` is always an array.
-  // When the Admin drawer injects bad report data, the API returns `series: null`
-  // and the TrendChart below throws while rendering - a real crash on real
-  // data, caught by the error boundary around <InsightsDashboard>.
 
   return (
     <section className="panel report insights" aria-labelledby="report-title">
@@ -47,7 +35,6 @@ export function InsightsDashboard() {
           <div className="kpis">
             {data.kpis.map((k) => {
               const up = k.deltaPct >= 0;
-              // For latency, lower is better: flip the status colour.
               const good = k.id === 'p95' ? !up : up;
               return (
                 <div className="kpi" key={k.id}>
@@ -92,12 +79,6 @@ export function InsightsDashboard() {
   );
 }
 
-/* ---------------------------------------------------------------------------
- * A small dependency-free line chart (one series, one axis) with a hover
- * crosshair + tooltip. Follows the house chart rules: 2px line, ~10% area
- * wash, hairline gridlines, >= 8px markers with a surface ring, text in text
- * colours (never the series colour).
- * ------------------------------------------------------------------------- */
 const W = 520;
 const H = 180;
 const PAD = { top: 12, right: 12, bottom: 26, left: 44 };

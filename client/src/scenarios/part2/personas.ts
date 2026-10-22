@@ -1,20 +1,10 @@
 import type { LDContext } from '@launchdarkly/react-sdk';
 
-/**
- * Part 2 (Target): the visitors we can "become" in the Admin drawer.
- *
- * Each persona is a LaunchDarkly *multi-context*: a `user` plus the
- * `organization` they belong to. Targeting rules in LaunchDarkly can use
- * attributes from either kind (e.g. `organization.plan is enterprise`), and
- * individual targeting uses the user's key.
- *
- * REPLACE ME: if you change keys or attributes here, mirror them in the
- * targeting you configure in LaunchDarkly (see README, Part 2).
- */
+// REPLACE ME: the Part 2 targeting in LaunchDarkly matches on these keys and attributes
+// (individual target alice-chen; rules on user.betaTester and organization.plan). Keep them in sync.
 export interface Persona {
   id: string;
   label: string;
-  /** Why this persona exists - which targeting mechanism it exercises. */
   servedBy: string;
   expectedV2: boolean;
   user: { key: string; name?: string; email?: string; country: string; role?: string; betaTester: boolean; anonymous?: boolean };
@@ -57,7 +47,6 @@ export const PERSONAS: Persona[] = [
 
 export const DEFAULT_PERSONA_ID = 'visitor';
 
-/** Build the LaunchDarkly context the SDKs evaluate flags against. */
 export function contextFor(persona: Persona): LDContext {
   const user = { kind: 'user' as const, ...persona.user };
   if (!persona.organization) return user;

@@ -1,13 +1,3 @@
-/**
- * Part 4 (AI Config): the support assistant API.
- *
- *   POST /api/chat           { context, message }                  -> one reply + which config variation served it
- *   POST /api/chat/feedback  { context, resumptionToken, kind }    -> thumbs up/down for an earlier reply
- *   POST /api/chat/evaluate  { context }                           -> the served config and the evaluation reason (no reply)
- *
- * The browser sends the visitor's LaunchDarkly context (same personas as
- * Part 2); the AI Config is evaluated server-side with the SDK key.
- */
 import { Router } from 'express';
 import type { LDContext } from '@launchdarkly/node-server-sdk';
 import { AI_CONFIG_KEY, recordFeedback, runSupportTurn, servedConfigFor } from '../ai/supportAssistant.js';

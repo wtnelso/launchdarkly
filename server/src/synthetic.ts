@@ -1,11 +1,5 @@
 import type { LDContext } from '@launchdarkly/node-server-sdk';
 
-/**
- * Random visitors for the Part 3 bulk traffic simulation (POST /api/demo/simulate-traffic).
- * Same shape as the browser's client/src/scenarios/part3/syntheticVisitors.ts:
- * a user + organization multi-context with a fresh user key, no beta testers and
- * no enterprise plans, so every visitor falls through to the experiment's rule.
- */
 const FIRST = ['Ava', 'Noah', 'Mia', 'Liam', 'Zoe', 'Ethan', 'Priya', 'Mateo', 'Yuki', 'Omar', 'Lena', 'Kai'];
 const LAST = ['Patel', 'Nguyen', 'Schmidt', 'Okafor', 'Rossi', 'Tanaka', 'Dubois', 'Silva', 'Kowalski', 'Haddad'];
 const COUNTRIES = ['US', 'US', 'US', 'CA', 'GB', 'DE', 'FR', 'AU', 'BR', 'IN'];
@@ -44,7 +38,6 @@ export function randomVisitor(): LDContext {
   };
 }
 
-/** Roughly bell-shaped milliseconds-to-click: v2 visitors decide a little faster. */
 export function randomTimeToClick(hero: 'v2' | 'classic'): number {
   const base = hero === 'v2' ? 5500 : 8500;
   const spread = hero === 'v2' ? 3000 : 4500;

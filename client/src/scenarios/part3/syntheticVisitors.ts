@@ -1,20 +1,5 @@
 import type { LDContext } from '@launchdarkly/react-sdk';
 
-/**
- * Random visitors for the Part 3 traffic simulation.
- *
- * Each one is a multi-context like the Part 2 personas (user + organization)
- * with a fresh random user key, so LaunchDarkly's experiment buckets it on its
- * own: the experiment's randomization unit is the *user* context kind, and the
- * bucket is a hash of the user key, so a new key is a new coin flip.
- *
- * None of them match the Part 2 targeting (no beta testers, no enterprise
- * plans): a visitor served by an individual target or a rule is not in the
- * experiment, which only runs on the default rule. Every synthetic visitor is
- * tagged `synthetic: true` so they are easy to tell apart in Contexts.
- *
- * Keep in sync with server/src/synthetic.ts (same shape, used for bulk traffic).
- */
 const FIRST = ['Ava', 'Noah', 'Mia', 'Liam', 'Zoe', 'Ethan', 'Priya', 'Mateo', 'Yuki', 'Omar', 'Lena', 'Kai'];
 const LAST = ['Patel', 'Nguyen', 'Schmidt', 'Okafor', 'Rossi', 'Tanaka', 'Dubois', 'Silva', 'Kowalski', 'Haddad'];
 const COUNTRIES = ['US', 'US', 'US', 'CA', 'GB', 'DE', 'FR', 'AU', 'BR', 'IN'];
@@ -54,10 +39,9 @@ export function randomVisitor(): LDContext {
   };
 }
 
-/** Roughly bell-shaped milliseconds-to-click: v2 visitors decide a little faster. */
 export function randomTimeToClick(hero: 'v2' | 'classic'): number {
   const base = hero === 'v2' ? 5500 : 8500;
   const spread = hero === 'v2' ? 3000 : 4500;
-  const noise = (Math.random() + Math.random() + Math.random()) / 3 - 0.5; // -0.5..0.5, centred
+  const noise = (Math.random() + Math.random() + Math.random()) / 3 - 0.5;
   return Math.max(800, Math.round(base + noise * 2 * spread));
 }

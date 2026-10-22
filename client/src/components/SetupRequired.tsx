@@ -1,8 +1,3 @@
-/**
- * Rendered instead of the dashboard when VITE_LD_CLIENT_SIDE_ID is missing.
- * The LaunchDarkly SDK refuses to start without a client-side ID, so rather
- * than crash we explain exactly what to do.
- */
 export function SetupRequired() {
   return (
     <div className="shell">

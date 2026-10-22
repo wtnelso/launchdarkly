@@ -1,30 +1,11 @@
-/**
- * Part 4: a local, deterministic stand-in for an LLM.
- *
- * The exercise is about managing prompts and models from LaunchDarkly, not
- * about the model itself, so this demo ships without an LLM API key. The
- * responder still honours the AI Config:
- *   - the *prompt* decides the style (a prompt that says "concise" gets terse
- *     answers; one that says "warm and thorough" gets greetings and steps), so
- *     editing the system message in LaunchDarkly changes the answers;
- *   - the *model name* decides latency (small models answer fast);
- *   - `max_tokens` caps the reply length;
- *   - token counts are estimated at ~4 characters per token, which is what the
- *     tracker reports to LaunchDarkly.
- *
- * Swap this for a real provider call (Anthropic, OpenAI, ...) and keep the
- * tracker calls in supportAssistant.ts unchanged.
- */
 export type Style = 'concise' | 'friendly';
 
 export interface ResponderInput {
-  /** The rendered messages from the AI Config (system prompt first). */
   messages: { role: 'system' | 'user' | 'assistant'; content: string }[];
   modelName: string;
   maxTokens?: number;
   variables: { customerName: string; plan: string; company: string; product: string };
   userMessage: string;
-  /** Seed for the latency jitter so bulk runs look organic but stay reproducible. */
   seed?: string;
 }
 
@@ -41,7 +22,6 @@ type Topic = 'billing' | 'login' | 'limits' | 'export' | 'cancel' | 'general';
 const FAST_MODEL = /mini|haiku|flash|nano|small|lite|instant|8b|3b/i;
 
 export function styleOf(systemPrompt: string): Style {
-  // "concise" wins so a prompt like "be concise, no greetings" isn't read as friendly.
   if (/\bconcise\b|short sentences|\bterse\b|\bbrief\b/i.test(systemPrompt)) return 'concise';
   if (/\bwarm\b|\bthorough\b|numbered steps|\bgreet\b|\bfriendly\b/i.test(systemPrompt)) return 'friendly';
   return 'concise';
@@ -94,7 +74,6 @@ function limitFor(plan: string): string {
   return plan === 'enterprise' ? '10,000' : plan === 'pro' ? '1,000' : '100';
 }
 
-/** Small deterministic hash so latency jitter is stable per seed. */
 function hash(s: string): number {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);

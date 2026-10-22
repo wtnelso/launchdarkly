@@ -13,33 +13,6 @@ interface State {
   report: ReportErrorResponse | null;
 }
 
-/**
- * Catches a crash inside the Insights dashboard so the rest of the page
- * keeps working, then tells the server about it (POST /api/report-error).
- *
- * If the server has a LaunchDarkly flag trigger configured it fires it, the
- * flag turns OFF, and the parent <FeatureGate> swaps back to the usage table
- * automatically. If not, the card tells the operator how to remediate by hand.
- *
- * It also sends the `insights-dashboard-crash` metric event. That is the
- * optional alternative: attach it to a LaunchDarkly *guarded rollout* and,
- * with enough traffic, LaunchDarkly detects the regression and rolls back by
- * itself. This demo uses the trigger because it acts on the first crash.
- *
- * Because <FeatureGate> only renders this boundary while the flag is ON, a
- * rollback unmounts it and a re-release mounts a fresh instance - no manual
- * reset needed.
- *
- * The crash is also recorded with LaunchDarkly Observability (see
- * recordFlagError) so it shows up under the flag's Monitoring > Errors view
- * with the session replay attached.
- */
-/**
- * React (in development, and under StrictMode) can replay a render that threw,
- * which would call componentDidCatch twice for one crash and fire the kill
- * switch twice. Share one in-flight report per error message for a few
- * seconds so each incident is reported - and the trigger fired - exactly once.
- */
 const REPORT_DEDUPE_MS = 5_000;
 let lastReport: { message: string; at: number; promise: Promise<ReportErrorResponse> } | null = null;
 
@@ -72,7 +45,6 @@ export class PanelErrorBoundary extends Component<Props, State> {
       value: true,
       component: 'InsightsDashboard',
     });
-    // Metric event for the guarded rollout (LaunchDarkly's own remediation path).
     trackInsightsCrash(error.message);
     void reportOnce(error.message).then(
       (report) => {
