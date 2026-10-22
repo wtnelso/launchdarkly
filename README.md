@@ -4,25 +4,45 @@ A React (Vite) web app and a Node (Express) API that use LaunchDarkly feature fl
 experimentation and an AI Config. This file covers setup and running only; the per-part
 walkthroughs are in `docs/`.
 
-## Assumptions
+## Prerequisites
 
-- macOS or Linux shell with `bash` and `curl`. On Windows use WSL or Git Bash.
-- **Node.js 20 or newer** and **npm 10 or newer** (`node -v`, `npm -v`). Tested with Node 22.
+- **Operating system:** macOS or Linux with a `bash` shell and `curl`. On Windows use WSL or Git Bash.
+- **Git**, to clone the repository.
+- **Node.js 20 or newer** and **npm 10 or newer**. Tested with Node 22.22 and npm 10.9. Check with
+  `node -v` and `npm -v`. To install: download the LTS build from <https://nodejs.org>, or with nvm:
+  `nvm install 22 && nvm use 22` (the repo has an `.nvmrc`, so `nvm use` alone also works). npm
+  ships with Node; no global npm packages are needed.
+- **Network access** during `npm install` (registry.npmjs.org) and while running (the app talks to
+  `*.launchdarkly.com` for flag streaming, events and observability).
 - Ports **5173** (web app) and **3001** (API) are free.
 - A **LaunchDarkly account**. A free trial is enough; flag triggers, Experimentation and AI Configs
   are included in trials. All steps below use **one environment** (they assume `Test`).
-- No LLM API key is needed. The chatbot in Part 4 answers with a local stand-in.
-- You have cloned this repository and run every command from its root directory.
+- Nothing else: no database, no other services, no LLM API key (the Part 4 chatbot answers with a
+  local stand-in).
 
 ## Setup
 
-### 1. Install and create the env files
+### 1. Get the code and install dependencies
 
 ```bash
+git clone https://github.com/wtnelso/launchdarkly.git
+cd launchdarkly
 npm install
 cp client/.env.example client/.env
 cp server/.env.example server/.env
 ```
+
+Run every later command from this directory. The project is an **npm workspaces** monorepo with
+two packages, `client/` and `server/`; the single `npm install` at the root installs both.
+`package-lock.json` is committed, so `npm ci` gives an exact reproduction if preferred.
+
+What gets installed:
+
+| Package | Runtime dependencies | Dev tooling |
+| --- | --- | --- |
+| `client/` (web app) | `react` 19, `react-dom` 19, `@launchdarkly/react-sdk` 4.1, `@launchdarkly/observability` 1.2, `@launchdarkly/session-replay` 1.2 | `vite` 8, `@vitejs/plugin-react` 6, `typescript` 5.9, React type packages |
+| `server/` (API) | `express` 5, `cors` 2, `dotenv` 18, `@launchdarkly/node-server-sdk` 9.15, `@launchdarkly/observability-node` 1.4, `@launchdarkly/server-sdk-ai` 2.0 | `tsx` 4 (runs TypeScript directly, with watch mode), `typescript` 5.9, Node/Express type packages |
+| root | — | `concurrently` 9 (runs both processes under `npm run dev`) |
 
 ### 2. Add your LaunchDarkly keys
 
@@ -109,8 +129,11 @@ if you run `insights-dashboard` as a guarded rollout.
 npm run dev
 ```
 
-This starts the API on <http://localhost:3001> and the web app on <http://localhost:5173>. Open
-<http://localhost:5173>.
+This starts the API on <http://localhost:3001> (`tsx watch`, restarts on changes) and the web app
+on <http://localhost:5173> (Vite dev server with hot reload) in one terminal. The web app proxies
+`/api/*` to the API, so only the web app URL is opened in the browser. Open <http://localhost:5173>.
+Stop both with Ctrl+C. A production-style run is `npm run build`, then `npm start -w server` and
+`npm run preview -w client`.
 
 - The **☰** button (top right) opens the Admin drawer. Its header shows the LaunchDarkly connection
   status; it should read **connected**. The **Exercise part** dropdown at the top of the drawer
