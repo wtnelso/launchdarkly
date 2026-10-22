@@ -53,6 +53,21 @@ export async function fetchUsageReport(): Promise<UsageReport> {
   return (await res.json()) as UsageReport;
 }
 
+export interface ReportErrorResponse {
+  remediated: boolean;
+  reason?: string;
+  triggerStatus?: number;
+}
+
+export async function reportError(flag: string, message: string): Promise<ReportErrorResponse> {
+  const res = await fetch('/api/report-error', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ flag, message }),
+  });
+  return (await res.json()) as ReportErrorResponse;
+}
+
 /** 12980000 -> "13.0M", 544 -> "544", 1234 -> "1.2K" */
 export function formatCompact(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;

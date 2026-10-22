@@ -44,8 +44,8 @@ export function Part1Admin() {
             <strong>Rollback:</strong> turn it <em>off</em>
           </li>
           <li>
-            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code> (flag trigger), or inject a bug
-            below and let the guarded rollout roll it back
+            <strong>Remediate:</strong> with it on, run <code>npm run remediate</code>, or inject a bug below and let
+            the kill switch do it
           </li>
         </ol>
       </div>
@@ -59,8 +59,8 @@ export function Part1Admin() {
         </div>
         <p className="small muted">
           Simulate a bad upstream deploy: the API starts returning a malformed Insights payload (<code>series: null</code>
-          ). The new dashboard crashes on it, the error boundary records it in LaunchDarkly Observability and sends the
-          crash metric the guarded rollout watches. Rolling back also retires the bad data.
+          ). The new dashboard crashes on it, the error boundary reports it to LaunchDarkly Observability and to the API,
+          and the API fires the flag trigger. Rolling back also retires the bad data.
         </p>
         <button className="btn btn-danger" disabled={!flagOn || chaos || busy} onClick={injectBadData}>
           Inject bad report data
@@ -104,14 +104,15 @@ function GuardedRollout({ chaos }: { chaos: boolean }) {
   return (
     <div className="card">
       <div className="card-head">
-        <h3>Guarded rollout</h3>
+        <h3>Guarded rollout (optional)</h3>
         <span className={`pill ${busy ? 'pending' : result ? 'on' : ''}`}>{busy ? 'Running…' : result ? 'Done' : 'Ready'}</span>
       </div>
       <p className="small muted">
-        LaunchDarkly's own remediation: ramp <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> up gradually while watching the{' '}
-        <code>{METRIC_EVENTS.INSIGHTS_CRASH}</code> metric, and roll back automatically when the new dashboard crashes more
-        than the old table. The browser sends that event on a real crash; this button sends it for many visitors at once so
-        the rollout has data to judge.
+        Prefer LaunchDarkly to decide instead of a trigger? Run <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> as a guarded
+        rollout watching the <code>{METRIC_EVENTS.INSIGHTS_CRASH}</code> metric: it ramps the new dashboard up gradually and
+        rolls back automatically when it crashes more than the old table. The browser sends that event on a real crash; this
+        button sends it for many visitors at once so the rollout has data to judge. It needs volume and a few minutes, so
+        the live demo uses the trigger.
       </p>
       <ol className="small steps">
         <li>With bad data <strong>off</strong>, simulate: both arms healthy, the rollout advances.</li>

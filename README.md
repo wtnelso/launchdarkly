@@ -7,7 +7,7 @@ adding risk** by wrapping new code in a LaunchDarkly feature flag:
 | --- | --- |
 | **Feature flag** around a new feature | The new **Insights** reporting dashboard is gated by the boolean flag `insights-dashboard`. Flag **off** = today's plain monthly usage table; flag **on** = KPI tiles with deltas, 30-day trend charts and a per-team breakdown. |
 | **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:insights-dashboard')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:insights-dashboard')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
-| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off: the on-call engineer's one-command rollback. For *automatic* remediation the flag runs as a **guarded rollout**: the Admin drawer can **inject bad report data**, the new dashboard crashes on the malformed payload, the crash is recorded in **LaunchDarkly Observability** (with session replay) and sent as the `insights-dashboard-crash` metric, and LaunchDarkly rolls the flag back on its own when the new variation regresses. |
+| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer can also **inject bad report data**: the API starts returning a malformed payload, the new dashboard crashes on it, the error is recorded in **LaunchDarkly Observability** (with session replay), and the API fires the same trigger automatically (an automatic kill switch). Optionally, a **guarded rollout** on the same flag lets LaunchDarkly watch the `insights-dashboard-crash` metric and roll back by itself. |
 
 This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise; [Part 2
 (Target)](#part-2-target), the [Experimentation extra credit](#extra-credit-experimentation) and
@@ -48,7 +48,7 @@ comments.
  │ @launchdarkly/node-server-sdk    │  SDK key        └────────┼─────────┘
  │  • GET  /api/reports/usage       │                          │ POST
  │  • GET  /api/flag-events (SSE)   │      curl (npm run remediate)
- │  • POST /api/demo/simulate-* ────┼──────────────────────────┘
+ │  • POST /api/report-error ───────┼──────────────────────────┘
  │  • POST /api/demo/chaos (demo)   │   errors + session replay → LaunchDarkly Observability
  └──────────────────────────────────┘
 ```
@@ -201,22 +201,28 @@ the logs are visible. **Never reload the browser** during the demo — that is t
      -d '{"eventName":"Rolling back Insights dashboard","url":"http://localhost:5173"}'
    ```
 
-4. **Remediate (automatic, via guarded rollout).** Covered in the next section: the flag runs as a
-   guarded rollout, **Inject bad report data** makes the new dashboard crash, and LaunchDarkly rolls
-   it back on its own. Either way, open the flag's **Monitoring** tab afterwards: **Errors** has the
-   crash with a session replay, and **Logs** shows the full timeline from both the browser and the
-   API.
+4. **Remediate (automatic kill switch).** Flip the flag **On** once more and, in the Admin
+   drawer under **Demo controls**, click **Inject bad report data**. The API now returns a malformed
+   Insights payload (`series: null`), exactly like a broken upstream deploy. The dashboard
+   auto-refreshes every 10 seconds (or click **Refresh**), pulls the bad payload and crashes. An error
+   boundary contains it, records the error in LaunchDarkly Observability, and reports it to the API,
+   which fires the same trigger. Watch the flag turn Off by itself and the UI roll back — no human in
+   the loop. Rolling back also retires the bad data, so the next release renders healthy.
+   Without `LD_TRIGGER_URL` the crash card instead tells the operator how to remediate by hand.
+   Then open the flag's **Monitoring** tab in LaunchDarkly: **Errors** has the crash with a session
+   replay, and **Logs** shows the full timeline from both the browser and the API.
 
 5. **Audit.** Open the flag's **History** tab in LaunchDarkly: every change is attributed — your
    user for the manual toggles, and the trigger (with the `eventName` you sent) for the
    remediations.
 
-### Remediate with a guarded rollout (LaunchDarkly decides, no trigger)
+### Going further: guarded rollout (optional)
 
-Step 3 above is a human (or a monitoring tool) deciding "roll back" and firing a trigger. A
-**guarded rollout** moves that decision into LaunchDarkly: it ramps the new variation up
-gradually, compares a metric between the new variation and control, and rolls back on its own when
-the new one regresses. The app contains no code that turns the flag off. The app's part is the metric: the error boundary sends the
+Steps 3 and 4 above are *our* code (or a human) deciding "this error means roll back" and firing a
+trigger. If you'd rather LaunchDarkly decide, a **guarded rollout** moves that decision into
+LaunchDarkly: it ramps the new variation up gradually, compares a metric between the new variation
+and control, and rolls back on its own when the new one regresses. It needs traffic in both arms
+and a few minutes to reach a verdict, so the live demo uses the trigger and *talks* about this. The app's part is the metric: the error boundary sends the
 `insights-dashboard-crash` event on a real crash (`client/src/ld/metrics.ts`), and the Admin
 drawer's **Guarded rollout** card sends it for hundreds of synthetic visitors at once
 (`POST /api/demo/simulate-reports`), because one browser can't give a statistical test enough data.
@@ -249,8 +255,8 @@ drawer's **Guarded rollout** card sends it for hundreds of synthetic visitors at
    History attributes it to the guarded rollout. Same outcome as the trigger, driven by statistics
    instead of a webhook.
 
-The two paths complement each other: the trigger is instant and needs no traffic (one crash and a
-human is enough), the guarded rollout needs traffic but needs no code to decide what "bad" means.
+The two paths complement each other: the trigger is instant and needs no traffic (one crash is
+enough), the guarded rollout needs traffic but needs no code to decide what "bad" means.
 
 ## Part 2: Target
 
@@ -591,24 +597,21 @@ per request from the SDK's in-memory store (no network call). `routes/flagEvents
   through small helpers (`logFlagEvent()` / `recordFlagError()` in `client/src/ld/telemetry.ts`,
   `logFlagEvent()` in `server/src/ld.ts`) that open such a span, evaluate the flag inside it, and
   record the log or error there. The whole incident then reads as one timeline under the flag:
-  flag changed → bad data injected → crash → chaos reset → flag changed, grouped by variation. Untagged `console.*` output still appears on the account-wide
+  flag changed → bad data injected → crash → crash reported → trigger fired → chaos reset → flag
+  changed, grouped by variation. Untagged `console.*` output still appears on the account-wide
   Observability → Logs page.
 
 **Remediation.** A flag trigger is an unguessable webhook URL bound to one action on one flag in
-one environment. Anything that can make an HTTP POST — curl, an APM alert, a CI job — can flip the
-flag; `npm run remediate` is the manual path. Rate limiting on LaunchDarkly's side keeps a flapping
-alert from toggling the flag endlessly. Automatic remediation is left to LaunchDarkly's guarded
-rollout rather than to app code, so "what counts as a regression" is a statistical setting in
-LaunchDarkly, not a hard-coded `if` in a handler.
+one environment. Anything that can make an HTTP POST — curl, an APM alert, this app's
+`POST /api/report-error` handler — can flip the flag. Rate limiting on LaunchDarkly's side keeps a
+flapping alert from toggling the flag endlessly.
 
-**Guarded rollout.** The error boundary also sends the `insights-dashboard-crash` metric event
-(`trackInsightsCrash()` in `client/src/ld/metrics.ts`), and `POST /api/demo/simulate-reports` sends
-it for synthetic visitors served the new variation while chaos is on. Attached to a guarded rollout
-on the flag, that metric lets LaunchDarkly ramp the release up, compare the two arms, and roll back
-by itself when the new dashboard regresses: the same outcome as the trigger, driven by statistics
-instead of a webhook. The trigger stays because one crash is enough for it and it needs no
-traffic; the guarded rollout needs traffic but needs no code to define "bad". See *Remediate with
-a guarded rollout* above.
+**Guarded rollout (optional).** The error boundary also sends the `insights-dashboard-crash` metric
+event (`trackInsightsCrash()` in `client/src/ld/metrics.ts`), and `POST /api/demo/simulate-reports`
+sends it for synthetic visitors served the new variation while chaos is on. Attached to a guarded
+rollout on the flag, that metric lets LaunchDarkly ramp the release up, compare the two arms, and
+roll back by itself when the new dashboard regresses: the same outcome as the trigger, driven by
+statistics instead of a webhook. See *Going further: guarded rollout* above.
 
 **Context.** The browser identifies as `{ kind: 'user', key: 'demo-user-001', name: 'Demo User' }`
 (`client/src/ld/provider.ts`). Part 1 only needs a stable identity; Part 2 (targeting) extends this
@@ -637,7 +640,7 @@ context with attributes.
 │       │   ├── FeatureGate.tsx         useBoolVariation → Insights dashboard or usage table
 │       │   ├── UsageReportTable.tsx    the legacy report (flag off)
 │       │   ├── InsightsDashboard.tsx   the new feature (flag on): KPIs, trend charts, team breakdown
-│       │   ├── PanelErrorBoundary.tsx  catches the crash, records it in Observability, sends the crash metric
+│       │   ├── PanelErrorBoundary.tsx  catches the crash, records it in Observability, calls /api/report-error (+ crash metric)
 │       │   ├── FlagActivityLog.tsx     explicit client.on('change:…') listener
 │       │   └── ServerStatus.tsx        SSE view of the server-side listener
 │       └── useUsageReport.ts, api.ts
@@ -650,7 +653,7 @@ context with attributes.
 │       ├── demo.ts           demo-only chaos state (malformed Insights payload)
 │       ├── synthetic.ts      random visitors for the bulk simulations
 │       ├── index.ts          app wiring, graceful shutdown (flush + close)
-│       └── routes/           reports.ts, flagEvents.ts (SSE listener), demo.ts (chaos + simulators), chat.ts (Part 4)
+│       └── routes/           reports.ts, flagEvents.ts (SSE listener), remediate.ts (kill switch), demo.ts (chaos + simulators), chat.ts (Part 4)
 ├── scripts/
 │   ├── remediate.sh          curl → flag trigger
 │   ├── remediate-api.sh      curl → REST API semantic patch (turnFlagOff)

@@ -6,6 +6,7 @@
  *   GET  /api/health        - liveness + SDK initialization status
  *   GET  /api/reports/usage - flag-dependent usage report (legacy table vs Insights)
  *   GET  /api/flag-events   - SSE stream of server-side flag changes (the listener)
+ *   POST /api/report-error  - automatic kill switch: fires the flag trigger when the UI reports a crash
  *   GET/POST /api/demo/chaos - demo only: make the Insights payload malformed
  *   POST /api/demo/simulate-traffic - Part 3: bulk synthetic experiment traffic (exposures + conversions)
  *   POST /api/chat, /api/chat/feedback, /api/chat/evaluate - Part 4: support assistant driven by an AI Config
@@ -19,6 +20,7 @@ import { chatRouter } from './routes/chat.js';
 import { demoRouter } from './routes/demo.js';
 import { flagEventsRouter } from './routes/flagEvents.js';
 import { reportsRouter } from './routes/reports.js';
+import { remediateRouter } from './routes/remediate.js';
 
 // API_PORT (not the generic PORT) so hosting tools that inject PORT can't collide with Vite.
 const port = Number(process.env.API_PORT ?? 3001);
@@ -32,6 +34,7 @@ app.get('/api/health', (_req, res) => {
 });
 app.use('/api', reportsRouter);
 app.use('/api', flagEventsRouter);
+app.use('/api', remediateRouter);
 app.use('/api', demoRouter);
 app.use('/api', chatRouter);
 
