@@ -1,9 +1,10 @@
 import { useBoolVariation } from '@launchdarkly/react-sdk';
 import { useState } from 'react';
-import { setChaos } from '../../api';
+import { setChaos, simulateReportsOnApi, type ReportSimulationResult } from '../../api';
 import { FlagActivityLog } from '../../components/FlagActivityLog';
 import { ServerStatus } from '../../components/ServerStatus';
 import { FLAG_KEYS } from '../../ld/flags';
+import { METRIC_EVENTS } from '../../ld/metrics';
 import { logFlagEvent } from '../../ld/telemetry';
 
 /**
@@ -67,8 +68,99 @@ export function Part1Admin() {
         {!flagOn && <p className="small muted">Turn the flag on first - the Insights dashboard isn't rendered right now.</p>}
       </div>
 
+      <GuardedRollout chaos={chaos} />
+
       <FlagActivityLog />
       <ServerStatus onEvent={(e) => setChaosState(e.chaos)} />
     </>
+  );
+}
+
+/**
+ * The other remediation path: a LaunchDarkly *guarded rollout*. Instead of our
+ * code firing a trigger when the dashboard crashes, LaunchDarkly ramps the new
+ * variation up gradually, watches the `insights-dashboard-crash` metric for
+ * both arms, and rolls back on its own when the new one regresses. It needs
+ * traffic in both arms to reach a verdict, which is what the simulator is for.
+ */
+function GuardedRollout({ chaos }: { chaos: boolean }) {
+  const [visitors, setVisitors] = useState(300);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<ReportSimulationResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await simulateReportsOnApi(visitors));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="card-head">
+        <h3>Guarded rollout</h3>
+        <span className={`pill ${busy ? 'pending' : result ? 'on' : ''}`}>{busy ? 'Running…' : result ? 'Done' : 'Ready'}</span>
+      </div>
+      <p className="small muted">
+        LaunchDarkly's own remediation: ramp <code>{FLAG_KEYS.INSIGHTS_DASHBOARD}</code> up gradually while watching the{' '}
+        <code>{METRIC_EVENTS.INSIGHTS_CRASH}</code> metric, and roll back automatically when the new dashboard crashes more
+        than the old table. The browser sends that event on a real crash; this button sends it for many visitors at once so
+        the rollout has data to judge.
+      </p>
+      <ol className="small steps">
+        <li>With bad data <strong>off</strong>, simulate: both arms healthy, the rollout advances.</li>
+        <li>
+          Click <strong>Inject bad report data</strong>, simulate again: every visitor on the new dashboard crashes.
+        </li>
+        <li>LaunchDarkly detects the regression and turns the flag off: no trigger, no human.</li>
+      </ol>
+      <div className="sim-fields">
+        <label className="field small">
+          <span className="muted">Visitors</span>
+          <input type="number" min={10} max={5000} step={10} value={visitors} onChange={(e) => setVisitors(Number(e.target.value))} disabled={busy} />
+        </label>
+      </div>
+      <div className="sim-actions">
+        <button className="btn btn-primary" onClick={() => void run()} disabled={busy} title="POST /api/demo/simulate-reports">
+          {busy ? 'Simulating…' : `Simulate ${visitors} visitors${chaos ? ' (bad data live)' : ''}`}
+        </button>
+      </div>
+      {result && (
+        <table className="stats">
+          <caption className="small muted">
+            Node SDK on the API · {result.visitors} visitors in {result.elapsedMs} ms{result.chaos ? ' · bad data was live' : ''}
+          </caption>
+          <thead>
+            <tr>
+              <th>Variation</th>
+              <th className="num">Views</th>
+              <th className="num">Crashes</th>
+              <th className="num">Crash rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Usage table (false)</td>
+              <td className="num">{result.legacy.views}</td>
+              <td className="num">0</td>
+              <td className="num">{result.legacy.views ? '0%' : '–'}</td>
+            </tr>
+            <tr>
+              <td>Insights (true)</td>
+              <td className="num">{result.insights.views}</td>
+              <td className="num">{result.insights.crashes}</td>
+              <td className="num">{result.insights.views ? `${Math.round((100 * result.insights.crashes) / result.insights.views)}%` : '–'}</td>
+            </tr>
+          </tbody>
+        </table>
+      )}
+      {error && <p className="small error">{error}</p>}
+    </div>
   );
 }

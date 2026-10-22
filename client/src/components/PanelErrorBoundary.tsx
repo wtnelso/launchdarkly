@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { reportError, type ReportErrorResponse } from '../api';
 import { FLAG_KEYS } from '../ld/flags';
+import { trackInsightsCrash } from '../ld/metrics';
 import { logFlagEvent, recordFlagError } from '../ld/telemetry';
 
 interface Props {
@@ -19,6 +20,10 @@ interface State {
  * If the server has a LaunchDarkly flag trigger configured it fires it, the
  * flag turns OFF, and the parent <FeatureGate> swaps back to the usage table
  * automatically. If not, the card tells the operator how to remediate by hand.
+ *
+ * It also sends the `insights-dashboard-crash` metric event, which is what a
+ * LaunchDarkly *guarded rollout* on the flag watches: with enough traffic,
+ * LaunchDarkly detects the regression and rolls back by itself, no trigger.
  *
  * Because <FeatureGate> only renders this boundary while the flag is ON, a
  * rollback unmounts it and a re-release mounts a fresh instance - no manual
@@ -66,6 +71,8 @@ export class PanelErrorBoundary extends Component<Props, State> {
       value: true,
       component: 'InsightsDashboard',
     });
+    // Metric event for the guarded rollout (LaunchDarkly's own remediation path).
+    trackInsightsCrash(error.message);
     void reportOnce(error.message).then(
       (report) => {
         this.setState({ report });

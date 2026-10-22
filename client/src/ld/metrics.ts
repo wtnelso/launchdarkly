@@ -16,6 +16,13 @@ export const METRIC_EVENTS = {
   HERO_CTA_CLICK: 'hero-cta-click',
   /** Numeric (optional): milliseconds between the hero rendering and the click. Lower is better. */
   HERO_CTA_TIME_TO_CLICK: 'hero-cta-time-to-click',
+  /**
+   * Part 1 guarded rollout: the Insights dashboard crashed for this context.
+   * Occurrence metric, lower is better. LaunchDarkly compares it between the
+   * new variation and control during a guarded rollout and rolls back on its
+   * own when the new variation regresses.
+   */
+  INSIGHTS_CRASH: 'insights-dashboard-crash',
 } as const;
 
 export interface ConversionEntry {
@@ -81,4 +88,9 @@ export function trackSyntheticConversion(hero: 'v2' | 'classic', msToClick: numb
   const client = getLDClient();
   client.track(METRIC_EVENTS.HERO_CTA_CLICK, { hero, cta: 'primary', synthetic: true });
   client.track(METRIC_EVENTS.HERO_CTA_TIME_TO_CLICK, { hero, synthetic: true }, msToClick);
+}
+
+/** Part 1: tell LaunchDarkly the new dashboard crashed for the current context (guarded-rollout signal). */
+export function trackInsightsCrash(message: string): void {
+  getLDClient().track(METRIC_EVENTS.INSIGHTS_CRASH, { message });
 }

@@ -17,6 +17,17 @@ Select **Part 2 · Target** in the top-right picker.
 | Rule-based targeting | Rules on the same flag | Rule 1 `user.betaTester is true` serves Bruno; Rule 2 `organization.plan is enterprise` serves Carla; reasons `RULE_MATCH` with the rule number. The anonymous visitor falls through to the default (`FALLTHROUGH`). |
 | Both tiers agree | `server/src/routes/landing.ts` (`boolVariationDetail`) | The Evaluation card shows the browser's and the API's value **and reason** for the same context. |
 
+## Data flow
+
+```
+ pick persona ─▶ contextFor(persona) ─┬─ identify(context) ─▶ Browser SDK ─▶ LaunchDarkly evaluates ─▶ { value, reason } ─▶ hero re-renders
+                                      └─ POST /api/landing/evaluate ─▶ Node SDK evaluates locally (streamed rules) ─▶ { value, reason }
+```
+
+The app owns the context (who the visitor is); LaunchDarkly owns the decision. The browser SDK sends
+the context up and gets evaluated values back; the Node SDK holds the rules and evaluates locally.
+The **Context payload** card in the drawer shows the exact JSON both paths use.
+
 ## Suggested 3-minute demo
 
 1. Visitor = **Anonymous**: "This is what 40,000 people a day see. Classic hero. The API agrees:

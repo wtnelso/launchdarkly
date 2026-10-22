@@ -60,6 +60,8 @@ export const METRIC_EVENTS = {
   HERO_CTA_CLICK: 'hero-cta-click',
   /** Numeric: milliseconds from hero render to click. Lower is better. */
   HERO_CTA_TIME_TO_CLICK: 'hero-cta-time-to-click',
+  /** Part 1 guarded rollout: the Insights dashboard crashed for a context. Occurrence, lower is better. */
+  INSIGHTS_CRASH: 'insights-dashboard-crash',
 } as const;
 
 /**

@@ -11,6 +11,15 @@
  * Node SDK evaluates flags locally, so thousands of visitors take well under a
  * second; the exposures and conversions are batched and flushed to LaunchDarkly.
  *
+ * POST /api/demo/simulate-reports { visitors }
+ *
+ * Part 1 (guarded rollout): synthetic visitors open the Reports page. Each one
+ * is evaluated for `insights-dashboard` (the exposure); those served the new
+ * dashboard while chaos mode is on hit the same `series: null` bug and send
+ * the `insights-dashboard-crash` metric event, which is what a guarded
+ * rollout watches. Healthy traffic lets the rollout advance; one run with bad
+ * data injected and LaunchDarkly rolls the flag back on its own.
+ *
  * POST /api/demo/simulate-chats { conversations, turns, positiveConcise, positiveFriendly }
  *
  * Part 4 (AI Config): synthetic support conversations. Each visitor gets the
@@ -150,4 +159,39 @@ demoRouter.post('/demo/simulate-chats', async (req, res) => {
     { flag: AI_CONFIG_KEY, event: 'chat_simulation', value: disabled === 0, conversations, turns, disabled },
   );
   res.json({ conversations, turns, disabled, byVariation: stats, elapsedMs, flushed: true });
+});
+
+demoRouter.post('/demo/simulate-reports', async (req, res) => {
+  const body = (req.body ?? {}) as { visitors?: unknown };
+  const visitors = Math.round(clamp(body.visitors, 1, 5000, 300));
+  const stats = { legacy: { views: 0 }, insights: { views: 0, crashes: 0 } };
+  const startedAt = Date.now();
+
+  for (let i = 0; i < visitors; i++) {
+    const visitor = randomVisitor();
+    // The exposure: which report this visitor gets. During a guarded rollout the
+    // SDK's feature event carries the variation LaunchDarkly bucketed them into.
+    const insights = await ldClient.boolVariation(FLAG_KEYS.INSIGHTS_DASHBOARD, visitor, false);
+    if (!insights) {
+      stats.legacy.views += 1;
+      continue;
+    }
+    stats.insights.views += 1;
+    // Same failure as the real page: the Insights payload is malformed while chaos is on,
+    // so the dashboard crashes for everyone served the new variation.
+    if (demoState.chaos) {
+      ldClient.track(METRIC_EVENTS.INSIGHTS_CRASH, visitor, { message: "Cannot read properties of null (reading 'map')", synthetic: true });
+      stats.insights.crashes += 1;
+    }
+  }
+  await ldClient.flush();
+
+  const elapsedMs = Date.now() - startedAt;
+  logFlagEvent(
+    `Simulated ${visitors} report visitors: ${stats.legacy.views} legacy, ${stats.insights.views} Insights, ${stats.insights.crashes} crashes` +
+      (demoState.chaos ? ' (chaos on)' : ''),
+    stats.insights.crashes > 0 ? 'warn' : 'info',
+    { event: 'report_simulation', value: stats.insights.views > 0, visitors, chaos: demoState.chaos, crashes: stats.insights.crashes },
+  );
+  res.json({ visitors, chaos: demoState.chaos, ...stats, elapsedMs, flushed: true });
 });

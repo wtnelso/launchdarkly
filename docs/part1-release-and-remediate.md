@@ -39,6 +39,16 @@ Open the Admin drawer first so the audience can watch the logs.
    and API side by side: release, bad data, crash, kill switch, rollback." Then **History**: "Every
    change is attributed and auditable."
 
+## Guarded rollout (LaunchDarkly remediates by itself)
+
+The trigger path is our code deciding "a crash means roll back". The **Guarded rollout** card in the
+Admin drawer shows the alternative: the error boundary sends an `insights-dashboard-crash` metric
+event, the card can send it for hundreds of synthetic visitors (`POST /api/demo/simulate-reports`),
+and a guarded rollout on the flag compares the crash rate of the new dashboard with the usage table
+and turns the flag off on its own when it regresses. Demo: simulate with bad data off (healthy),
+inject bad data, simulate again (100% crash rate on `true`), watch LaunchDarkly roll back without a
+trigger or a human. Setup is in the README under *Remediate with a guarded rollout*.
+
 ## Design decisions worth calling out
 
 - **Fail closed.** Every evaluation passes `false` as the default, so an outage of LaunchDarkly or

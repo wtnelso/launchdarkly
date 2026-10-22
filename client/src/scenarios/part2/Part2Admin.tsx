@@ -107,6 +107,23 @@ export function Part2Admin() {
       </div>
 
       <div className="card">
+        <div className="card-head">
+          <h3>Context payload</h3>
+          <span className="pill">{persona.organization ? 'multi-context' : 'single context'}</span>
+        </div>
+        <p className="small muted">
+          Exactly what <code>identify()</code> sends to LaunchDarkly from the browser, and what the Evaluation card POSTs to{' '}
+          <code>/api/landing/evaluate</code> for the Node SDK. Targeting rules match on these attributes.
+        </p>
+        <pre className="prompt">{JSON.stringify(contextFor(persona), null, 2)}</pre>
+        <p className="small muted">
+          Browser: the SDK sends this context to LaunchDarkly and receives the already-evaluated flag values. API: the Node SDK
+          evaluates the same context locally against its streamed copy of the rules. Neither tier changes the context; the
+          app decides who the visitor is.
+        </p>
+      </div>
+
+      <div className="card">
         <h3>Targeting to configure</h3>
         <ol className="small steps">
           <li>

@@ -196,3 +196,15 @@ export interface ChatSimulationResult {
 
 export const simulateChatsOnApi = (body: { conversations: number; turns: number; positiveConcise: number; positiveFriendly: number }) =>
   post<ChatSimulationResult>('/api/demo/simulate-chats', body);
+
+/** Part 1 guarded rollout: synthetic report visitors (exposures + crash metric events) from the Node SDK. */
+export interface ReportSimulationResult {
+  visitors: number;
+  chaos: boolean;
+  legacy: { views: number };
+  insights: { views: number; crashes: number };
+  elapsedMs: number;
+  flushed: boolean;
+}
+
+export const simulateReportsOnApi = (visitors: number) => post<ReportSimulationResult>('/api/demo/simulate-reports', { visitors });

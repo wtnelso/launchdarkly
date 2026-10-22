@@ -7,7 +7,7 @@ adding risk** by wrapping new code in a LaunchDarkly feature flag:
 | --- | --- |
 | **Feature flag** around a new feature | The new **Insights** reporting dashboard is gated by the boolean flag `insights-dashboard`. Flag **off** = today's plain monthly usage table; flag **on** = KPI tiles with deltas, 30-day trend charts and a per-team breakdown. |
 | **Instant release / rollback** (a "listener", no page reload) | The React SDK's `useBoolVariation` hook and an explicit `client.on('change:insights-dashboard')` listener re-render the page the moment the flag changes. The Node API registers `ldClient.on('update:insights-dashboard')` and pushes the change to the browser over Server-Sent Events, so you can watch both tiers flip together. |
-| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer can also **inject bad report data**: the API starts returning a malformed payload, the new dashboard crashes on it, the error is recorded in **LaunchDarkly Observability** (with session replay), and the API fires the same trigger automatically (an automatic kill switch). |
+| **Remediate** with a trigger | `npm run remediate` POSTs to a LaunchDarkly **flag trigger** with `curl`, turning the flag off. The Admin drawer can also **inject bad report data**: the API starts returning a malformed payload, the new dashboard crashes on it, the error is recorded in **LaunchDarkly Observability** (with session replay), and the API fires the same trigger automatically (an automatic kill switch). A **guarded rollout** on the same flag shows the alternative: LaunchDarkly watches the `insights-dashboard-crash` metric and rolls back on its own. |
 
 This is **Part 1 (Release and Remediate)** of the LaunchDarkly SE technical exercise; [Part 2
 (Target)](#part-2-target), the [Experimentation extra credit](#extra-credit-experimentation) and
@@ -170,6 +170,7 @@ Other commands:
 | `npm run remediate:api` | Same, via the REST API (fallback) |
 | `npm run setup:part2` | Configures Part 2 targeting on `landing-hero-v-2` via the REST API |
 | `curl -X POST localhost:3001/api/demo/simulate-traffic -H 'Content-Type: application/json' -d '{"visitors":500}'` | Part 3: bulk experiment traffic from the Node SDK (also a button in the Admin drawer) |
+| `curl -X POST localhost:3001/api/demo/simulate-reports -H 'Content-Type: application/json' -d '{"visitors":300}'` | Part 1 guarded rollout: synthetic report visitors (crash events while bad data is live) |
 | `curl -X POST localhost:3001/api/chat -H 'Content-Type: application/json' -d '{"context":{"kind":"user","key":"demo"},"message":"Where is my invoice?"}'` | Part 4: one support reply from the AI Config |
 | `curl -X POST localhost:3001/api/demo/simulate-chats -H 'Content-Type: application/json' -d '{"conversations":300}'` | Part 4: synthetic conversations with feedback for the experiment |
 
@@ -215,6 +216,47 @@ the logs are visible. **Never reload the browser** during the demo — that is t
    user for the manual toggles, and the trigger (with the `eventName` you sent) for the
    remediations.
 
+### Remediate with a guarded rollout (LaunchDarkly decides, no trigger)
+
+Steps 3 and 4 above are *our* code deciding "this error means roll back" and firing a trigger. A
+**guarded rollout** moves that decision into LaunchDarkly: it ramps the new variation up
+gradually, compares a metric between the new variation and control, and rolls back on its own when
+the new one regresses. The app's part is the metric: the error boundary sends the
+`insights-dashboard-crash` event on a real crash (`client/src/ld/metrics.ts`), and the Admin
+drawer's **Guarded rollout** card sends it for hundreds of synthetic visitors at once
+(`POST /api/demo/simulate-reports`), because one browser can't give a statistical test enough data.
+
+**LaunchDarkly setup**
+
+1. **Metrics → Create metric**: *LaunchDarkly hosted*, event kind *Custom*, event key
+   **`insights-dashboard-crash`**, definition **Occurrence (Percent)**, name `Insights dashboard
+   crash`, unit *user*, **Lower is better**. Create.
+2. Turn the flag **Off** and, in the Admin drawer, run **Simulate 300 visitors** once so the metric
+   has seen events (it needs one before it can be attached).
+3. On the flag's **Targeting** tab click the default rule's **Edit** → in the variation dropdown
+   choose **Guarded rollout** (some accounts: *Release guardian*). Configure:
+   - **Metric:** `Insights dashboard crash` (lower is better).
+   - **Rollout:** a short schedule for the demo, e.g. 25% → 50% → 100% every **1 minute**, or the
+     shortest preset offered.
+   - **Regression:** keep the default threshold and leave **Roll back automatically** on.
+   - Optional: *Individual targets* → `demo-user-001` → **true**, so your own browser always shows
+     the new dashboard while the rollout runs (targets are outside the rollout's analysis).
+   - **Review and save** and turn the flag **On**.
+
+**Demo**
+
+1. With bad data **off**, click **Simulate 300 visitors**: roughly a quarter get Insights, none
+   crash. The rollout's status in LaunchDarkly stays healthy and advances to the next stage.
+2. Click **Inject bad report data**, then **Simulate 300 visitors** again: every visitor served
+   the new dashboard now crashes (the table shows a 100% crash rate for `true`, 0% for `false`).
+3. Within a minute or two LaunchDarkly flags the regression and **turns the flag off by itself**.
+   The usage table is back for everyone, the *Server listener* card logs the change, and the flag's
+   History attributes it to the guarded rollout. Same outcome as the trigger, driven by statistics
+   instead of a webhook.
+
+The two paths complement each other: the trigger is instant and needs no traffic (one crash is
+enough), the guarded rollout needs traffic but needs no code to decide what "bad" means.
+
 ## Part 2: Target
 
 Select **Part 2 · Target** in the top-right picker. The end-user view becomes ABC Company's
@@ -258,6 +300,38 @@ Each persona in the Admin drawer is a LaunchDarkly **multi-context**: a `user` p
 `LD_PROJECT_KEY` is auto-detected when the token sees one project and `LD_ENV_KEY` defaults to
 `test`. The script looks up the flag's variation IDs, then sends one semantic patch with
 `addTargets`, two `addRule`s, `updateFallthroughVariationOrRollout` and `turnFlagOn`.
+
+### Data flow: who evaluates what
+
+The browser decides *who the visitor is*; LaunchDarkly decides *what they get*. Both tiers evaluate
+the same flag for the same context, but differently: the browser SDK can't see the rules, so it
+sends the context to LaunchDarkly and receives already-evaluated values; the Node SDK streams every
+rule down and evaluates locally. The Admin drawer's **Context payload** card shows the exact object
+in play.
+
+```
+  Admin drawer: pick persona
+          │
+          ▼
+  contextFor(persona)  ──────────────────────────────────────────────────────────────┐
+  { kind: 'multi',                                                                   │
+    user: { key, name, email, country, role, betaTester },                           │
+    organization: { key, name, plan, industry, employees } }                         │
+          │                                                                          │
+          │ identify(context)                                                        │ POST /api/landing/evaluate
+          ▼                                                                          ▼
+  ┌──────────────────────┐   REPORT /sdk/evalx   ┌──────────────┐           ┌──────────────────────┐
+  │ Browser: React SDK   │ ─────────────────────▶│ LaunchDarkly │◀─stream──│ API: Node SDK        │
+  │ (client-side ID)     │ ◀───────────────────── │ evaluates    │  (rules) │ boolVariationDetail  │
+  │ useBoolVariation()   │  { landing-hero-v-2:   │ targets →    │           │ evaluates locally    │
+  │ re-renders the hero  │    value, reason }     │ rules →      │           │ against streamed     │
+  └──────────────────────┘                        │ default      │           │ rules; no network    │
+          │                                       └──────────────┘           └──────────────────────┘
+          │ stream: flag change → re-identify not needed, value pushed                │
+          ▼                                                                          ▼
+     Hero v2 / classic                                        { value, reason: TARGET_MATCH | RULE_MATCH | FALLTHROUGH }
+                                                                   shown next to the browser's in the Evaluation card
+```
 
 Rule order matters: LaunchDarkly checks individual targets first, then rules top to bottom, then
 the default rule. The Evaluation card in the drawer reports which one matched (`TARGET_MATCH`,
@@ -534,12 +608,14 @@ one environment. Anything that can make an HTTP POST — curl, an APM alert, thi
 `POST /api/report-error` handler — can flip the flag. Rate limiting on LaunchDarkly's side keeps a
 flapping alert from toggling the flag endlessly.
 
-**Going further: guarded rollouts.** The observability plugins also produce an autogenerated
-*User error rate* metric. On plans with the Guardian add-on you can attach it to the flag and run a
-**guarded rollout**: LaunchDarkly ramps the new variation up gradually, watches the metric, and rolls
-back on its own when the error rate regresses — the same outcome as this demo's trigger, driven by
-statistics instead of a webhook. It needs real traffic to reach significance, so this demo keeps the
-trigger as the remediation path (which is also what the exercise asks for).
+**Guarded rollout.** The error boundary also sends the `insights-dashboard-crash` metric event
+(`trackInsightsCrash()` in `client/src/ld/metrics.ts`), and `POST /api/demo/simulate-reports` sends
+it for synthetic visitors served the new variation while chaos is on. Attached to a guarded rollout
+on the flag, that metric lets LaunchDarkly ramp the release up, compare the two arms, and roll back
+by itself when the new dashboard regresses: the same outcome as the trigger, driven by statistics
+instead of a webhook. The trigger stays because one crash is enough for it and it needs no
+traffic; the guarded rollout needs traffic but needs no code to define "bad". See *Remediate with
+a guarded rollout* above.
 
 **Context.** The browser identifies as `{ kind: 'user', key: 'demo-user-001', name: 'Demo User' }`
 (`client/src/ld/provider.ts`). Part 1 only needs a stable identity; Part 2 (targeting) extends this
@@ -609,6 +685,7 @@ context with attributes.
 | Experiment Results stay empty after simulating | The experiment wasn't started yet when the traffic ran (only summary events are sent until then), or the metric's event key doesn't match `hero-cta-click` in `client/src/ld/metrics.ts`. Start the experiment, run the simulation again, wait a few minutes. |
 | Experiment shows exposures but no conversions | The metric was created with a different event key or the wrong randomization unit (it must be `user`). Check Metrics → the metric → event key, then the **Your own clicks** log and the `events/bulk` request payload. |
 | Simulation is slow or logs identify errors | Each browser visitor is one `identify()` round trip (~200 ms). Use **Bulk via API** for volume; identify errors usually mean the network dropped - the run continues. |
+| Guarded rollout never rolls back | It needs both arms to have traffic and the new arm to crash: run the simulator once with bad data off, then once with it on. Check the metric is `Occurrence (Percent)`, unit `user`, *Lower is better*, and that the rollout's metric is that one. Short rollout stages make the verdict faster. |
 | Part 4 drawer pill says **Fallback** | LaunchDarkly did not serve `support-assistant`: the config doesn't exist yet, its key differs from `server/src/ld.ts`, or the server SDK isn't initialized. The in-code default answers meanwhile. |
 | Part 4 chat shows the "taking a break" banner | The config is toggled **off** in this environment (`enabled: false`). That's the kill switch working; turn it back on. |
 | Experiment builder doesn't offer the AI metrics | LaunchDarkly creates them after the first `$ld:ai:*` events arrive. Send one chat turn and a 👍 (or run the simulator), wait a minute, reload the builder. |
